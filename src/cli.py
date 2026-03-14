@@ -8,12 +8,12 @@ class CLI:
         """Initialize the CLI interface."""
         self.prompt = "" # Prompt for user input
         self.intro = "" # Introduction message displayed when the application starts
-    
+
     def cmd_exit(self, _):
         """Exit the application."""
         print("Goodbye!")
         exit(0)
-    
+
     def cmd_help(self, args: list):
         """Show help information for commands.
         If a specific command is provided, show detailed help for that command.
@@ -96,7 +96,7 @@ class CLI:
 
     def mainloop(self):
         """Start the command loop."""
-        print(Fore.CYAN + self.intro + Fore.RESET) # Print the introduction message in yellow color
+        print(self.intro) # Print the introduction message in yellow color
         while True: # Infinite loop to continuously prompt for user input and dispatch commands
             try:
                 command = input( # Get user input
