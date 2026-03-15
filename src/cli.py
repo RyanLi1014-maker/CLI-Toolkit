@@ -5,10 +5,14 @@ from colorama import Fore, Style # Import colorama for colored output in the ter
 
 class CLI:
     """Command-line interface class."""
-    def __init__(self):
-        """Initialize the CLI interface."""
-        self.prompt = "" # Prompt for user input
-        self.intro = "" # Introduction message displayed when the application starts
+    def __init__(self, prompt: str = "", intro: str = ""):
+        """Initialize the CLI interface.
+        Args:
+            prompt (str): The prompt to display for user input.
+            intro (str): The introduction message to display when the application starts.
+        """
+        self.prompt = prompt # Prompt for user input
+        self.intro = intro # Introduction message displayed when the application starts
 
     def cmd_exit(self, _):
         """Exit the application."""
@@ -59,7 +63,10 @@ class CLI:
                         )
 
     def _show_unknown_cmd(self, input_cmd: str = ""):
-        """Show an error message for unknown/blank commands."""
+        """Show an error message for unknown/blank commands.
+        Args:
+            input_cmd (str): The input command that was not recognized.
+        """
         if input_cmd: # If the input command is not blank, show an error message for unknown command
             print(
                 Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
@@ -74,7 +81,10 @@ class CLI:
             )
 
     def _dispatch(self, input_cmd: str):
-        """Dispatch the command to the appropriate handler."""
+        """Dispatch the command to the appropriate handler.
+        Args:
+            input_cmd (str): The raw input command entered by the user.
+        """
         try:
             parsed_input = shlex.split(input_cmd) # Parse the command using shell-like syntax
         except ValueError as e: # Handle parsing errors
@@ -109,10 +119,11 @@ class CLI:
                 break
 
 if __name__ == "__main__": # Test the CLI application
-    cli = CLI()
-    cli.intro = (
-        "Welcome to the CLI Test! Type 'help' to list commands.\n"
-        "Type 'exit' to exit the application."
+    cli = CLI(
+        prompt="CLI-Test> ", # Prompt for user input
+        intro=( # Introduction message displayed when the application starts
+            "Welcome to the CLI Test! Type 'help' to list commands.\n"
+            "Type 'exit' to exit the application."
+        )
     )
-    cli.prompt = "CLI-Test> "
     cli.mainloop()

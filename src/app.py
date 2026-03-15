@@ -24,11 +24,12 @@ class CLI_Toolkit_App(cli.CLI):
     def __init__(self):
         """Initialize the CLI-Tookit application."""
         print(logo) # Print the logo when the application starts
-        super().__init__()
-        self.prompt = "CLI-Toolkit> " # Prompt for user input
-        self.intro = ( # Introduction message displayed when the application starts
-            "Welcome to the CLI Toolkit! Type 'help' to list commands.\n"
-            "Type 'exit' to exit the application."
+        super().__init__(
+            prompt="CLI-Toolkit> ", # Prompt for user input
+            intro=( # Introduction message displayed when the application starts
+                "Welcome to the CLI Toolkit! Type 'help' to list commands.\n"
+                "Type 'exit' to exit the application."
+            )
         )
 
 if __name__ == "__main__": # Test the CLI-Tookit Application
