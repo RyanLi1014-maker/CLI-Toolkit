@@ -1,5 +1,6 @@
 """Command-line interface"""
 import shlex # Shell-like syntax parsing
+import string # String manipulation utilities
 from colorama import Fore, Style # Import colorama for colored output in the terminal
 
 class CLI:
@@ -21,10 +22,9 @@ class CLI:
         """
         if args: # If a specific command is provided, show detailed help for that command
             cmd_name = args[0] # Get the command name from the arguments
-            method_name = f"cmd_{cmd_name}" # Construct the method name corresponding to the command
-            method_attr = getattr(self, method_name, None) # Get the method attribute for the command
-            if callable(method_attr):
-                if method_attr.__doc__: # If the method has no docstring, provide a default message
+            method_attr = getattr(self, f"cmd_{cmd_name}", None) # Get the method attribute for the command
+            if callable(method_attr): # If the method exists and is callable, show its docstring as detailed help
+                if method_attr.__doc__: # If the method has a docstring, provide a default message
                     print(
                         Fore.BLUE + f"Detailed description of {cmd_name}:" + Fore.RESET
                     )
@@ -34,20 +34,21 @@ class CLI:
                     print(indented_doc)
                 else: # If the method has no docstring, provide a default message
                     print(
-                        Fore.BLUE + f"Detailed description of {cmd_name}:" + Fore.RESET,
-                        "No description available."
+                        "Command",
+                        Fore.BLUE + cmd_name + Fore.RESET,
+                        "has no description available."
                     )
             else:
                 self._show_unknown_cmd(cmd_name)
         else: # If no specific command is provided, show a list of available commands
-            print(Fore.BLUE + "Available commands:" + Fore.RESET)
+            print(Fore.GREEN + "Available commands:" + Fore.RESET)
             for method_name in dir(self):
                 if not method_name.startswith("cmd_"):
                     continue
                 method_attr = getattr(self, method_name, None)
                 if callable(method_attr):
-                    if method_attr.__doc__: # If the method has no docstring, provide a default message
-                        print(
+                    if method_attr.__doc__: # If the method has a docstring, provide a default message
+                        print( # Print the command name without the "cmd_" prefix and the first line of the docstring as a brief description
                             Fore.BLUE + f"  {method_name[4:]}:" + Fore.RESET,
                             method_attr.__doc__.splitlines()[0]
                         )
@@ -59,35 +60,34 @@ class CLI:
 
     def _show_unknown_cmd(self, input_cmd: str = ""):
         """Show an error message for unknown/blank commands."""
-        if input_cmd:
+        if input_cmd: # If the input command is not blank, show an error message for unknown command
             print(
                 Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
                 Fore.RED + f"Unknown command: {input_cmd}." + Fore.RESET,
                 "Type 'help' for a list of commands."
             )
-        else:
+        else: # If the input command is blank, show an error message for blank command
             print(
                 Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
-                Fore.RED + "Don't enter a blank command." + Fore.RESET,
-                "Type 'help' for a list of commands."
+                Fore.RED + "No command entered." + Fore.RESET,
+                "Please enter an existing command. Type 'help' for a list of commands."
             )
 
     def _dispatch(self, input_cmd: str):
         """Dispatch the command to the appropriate handler."""
-        input_cmd = input_cmd.strip() # Remove leading/trailing whitespace
-        if not input_cmd: # Ignore empty commands
-            return
         try:
-            parsed_cmd = shlex.split(input_cmd) # Parse the command using shell-like syntax
-        except ValueError as e: # Handle parsing errors gracefully
+            parsed_input = shlex.split(input_cmd) # Parse the command using shell-like syntax
+        except ValueError as e: # Handle parsing errors
             print(
                 Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
                 Fore.RED + f"Failed to parse command: {e}." + Fore.RESET,
                 "Please check your command syntax and try again."
             )
             return
-        cmd = parsed_cmd[0] if parsed_cmd else "" # Get the command name
-        args = parsed_cmd[1:] if len(parsed_cmd) > 1 else [] # Get the command arguments
+        cmd = parsed_input[0] if parsed_input else "" # Get the command name
+        if not "".join([char for char in cmd if char in string.printable]):
+            return # Ignore unprintable commands like Ctrl+A or Ctrl+D and blank commands
+        args = parsed_input[1:] if len(parsed_input) > 1 else [] # Get the command arguments
         method = getattr(self, f"cmd_{cmd}", None) # Get the method corresponding to the command
         if callable(method): # If the method exists and is callable, call it with the arguments
             method(args)
@@ -104,7 +104,7 @@ class CLI:
                 )
                 print(Fore.RESET, end="") # Reset color after the prompt
                 self._dispatch(command) # Dispatch the command
-            except (KeyboardInterrupt, EOFError): # Handle Ctrl+C and Ctrl+D gracefully
+            except (KeyboardInterrupt): # Handle Ctrl+C
                 print(Fore.RESET + "\nGoodbye!")
                 break
 
