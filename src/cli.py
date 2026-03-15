@@ -15,14 +15,24 @@ class CLI:
         self.intro = intro # Introduction message displayed when the application starts
 
     def cmd_exit(self, _):
-        """Exit the application."""
+        """Exit the application.
+        Equivalent to Ctrl+C, this command exits the application with code 0.
+        Usage:
+            exit: Exit the application with code 0.
+        Options:
+            None
+        """
         print("Goodbye!")
-        exit(0)
+        exit(0) # Exit the application with code 0 on exit command
 
     def cmd_help(self, args: list):
         """Show help information for commands.
         If a specific command is provided, show detailed help for that command.
         Otherwise, show a list of available commands.
+        Usage:
+            help [command]: Show command list or detailed descriptions for [command].
+        Options:
+            command(optional): The specific command to show detailed help for.
         """
         if args: # If a specific command is provided, show detailed help for that command
             cmd_name = args[0] # Get the command name from the arguments
@@ -61,6 +71,7 @@ class CLI:
                             Fore.BLUE + f"  {method_name[4:]}:" + Fore.RESET,
                             "No description available."
                         )
+            print("To get detailed help for a specific command, type 'help [command]'.")
 
     def _show_unknown_cmd(self, input_cmd: str = ""):
         """Show an error message for unknown/blank commands.
@@ -116,7 +127,7 @@ class CLI:
                 self._dispatch(command) # Dispatch the command
             except (KeyboardInterrupt): # Handle Ctrl+C
                 print(Fore.RESET + "\nGoodbye!")
-                break
+                exit(0) # Exit the application with code 0 on Ctrl+C
 
 if __name__ == "__main__": # Test the CLI application
     cli = CLI(
