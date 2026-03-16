@@ -33,5 +33,10 @@ class CLI_Toolkit_App(cli.CLI):
         )
 
 if __name__ == "__main__": # Test the CLI-Tookit Application
+    def infinite_loop(_):
+        """A test task that runs an infinite loop, printing a message while running."""
+        while True:
+            print("Running test task...", end="\r")
     app = CLI_Toolkit_App()
+    setattr(app, "cmd_infinite_loop", infinite_loop) # Add a test task method to the app instance
     app.mainloop()

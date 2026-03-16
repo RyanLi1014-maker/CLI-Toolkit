@@ -78,6 +78,8 @@ class CLI:
         Args:
             input_cmd (str): The input command that was not recognized.
         """
+        # Remove unprintable characters like shortcut keys from the input command
+        input_cmd = "".join([char for char in input_cmd if char in string.printable])
         if input_cmd: # If the input command is not blank, show an error message for unknown command
             print(
                 Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
@@ -105,9 +107,9 @@ class CLI:
                 "Please check your command syntax and try again."
             )
             return
+        if not parsed_input: # Ignore blank commands (commands with only spaces)
+            return
         cmd = parsed_input[0] if parsed_input else "" # Get the command name
-        if not "".join([char for char in cmd if char in string.printable]):
-            return # Ignore unprintable commands like Ctrl+A or Ctrl+D and blank commands
         args = parsed_input[1:] if len(parsed_input) > 1 else [] # Get the command arguments
         method = getattr(self, f"cmd_{cmd}", None) # Get the method corresponding to the command
         if callable(method): # If the method exists and is callable, call it with the arguments
@@ -125,11 +127,20 @@ class CLI:
                 )
                 print(Fore.RESET, end="") # Reset color after the prompt
                 self._dispatch(command) # Dispatch the command
-            except (KeyboardInterrupt): # Handle Ctrl+C
-                print(Fore.RESET + "\nGoodbye!")
+            except (KeyboardInterrupt, EOFError): # Handle Ctrl+C and Ctrl+D gracefully
+                print(
+                    Style.RESET_ALL, 
+                    Style.BRIGHT + Fore.LIGHTRED_EX + "\n[Interrupted]" + Style.RESET_ALL,
+                    Fore.RED + "Exiting the application..." + Fore.RESET
+                )
+                print("Goodbye!")
                 exit(0) # Exit the application with code 0 on Ctrl+C
 
 if __name__ == "__main__": # Test the CLI application
+    def infinite_loop(_):
+        """A test task that runs an infinite loop, printing a message while running."""
+        while True:
+            print("Running test task...", end="\r")
     cli = CLI(
         prompt="CLI-Test> ", # Prompt for user input
         intro=( # Introduction message displayed when the application starts
@@ -137,4 +148,5 @@ if __name__ == "__main__": # Test the CLI application
             "Type 'exit' to exit the application."
         )
     )
+    setattr(cli, "cmd_infinite_loop", infinite_loop) # Add a test task method to the app instance
     cli.mainloop()
