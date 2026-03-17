@@ -3,6 +3,42 @@ import shlex # Shell-like syntax parsing
 import string # String manipulation utilities
 from colorama import Fore, Style # Import colorama for colored output in the terminal
 
+def show_info(category: str = "\b", *content):
+    """Show an informational message with a category label.
+    Args:
+        category (str): The category label for the informational message.
+        content (str): The informational message to display. The first element is the main message, and the rest are additional details.
+    """
+    print(
+        Style.BRIGHT +Fore.LIGHTBLUE_EX + f"[INFO/{category}]" + Style.RESET_ALL,
+        Fore.BLUE + content[0] + Fore.RESET,
+        *content[1:] if len(content) > 1 else ""
+    )
+
+def show_warning(category: str = "\b", *content):
+    """Show a warning message with a category label.
+    Args:
+        category (str): The category label for the warning message.
+        content (str): The warning message to display. The first element is the main message, and the rest are additional details.
+    """
+    print(
+        Style.BRIGHT + Fore.LIGHTYELLOW_EX + f"[WARNING/{category}]" + Style.RESET_ALL,
+        Fore.YELLOW + content[0] + Fore.RESET,
+        *content[1:] if len(content) > 1 else ""
+    )
+
+def show_error(category: str = "\b", *content):
+    """Show an error message with a category label.
+    Args:
+        category (str): The category label for the error message.
+        content (str): The error message to display. The first element is the main message, and the rest are additional details.
+    """
+    print(
+        Style.BRIGHT + Fore.LIGHTRED_EX + f"[ERROR/{category}]" + Style.RESET_ALL,
+        Fore.RED + content[0] + Fore.RESET,
+        *content[1:] if len(content) > 1 else ""
+    )
+
 class CLI:
     """Command-line interface class."""
     def __init__(self, prompt: str = "", intro: str = ""):
@@ -22,6 +58,10 @@ class CLI:
         Options:
             None
         """
+        show_info(
+            "CLI",
+            "Exiting the application."
+        )
         print("Goodbye!")
         exit(0) # Exit the application with code 0 on exit command
 
@@ -81,15 +121,15 @@ class CLI:
         # Remove unprintable characters like shortcut keys from the input command
         input_cmd = "".join([char for char in input_cmd if char in string.printable])
         if input_cmd: # If the input command is not blank, show an error message for unknown command
-            print(
-                Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
-                Fore.RED + f"Unknown command: {input_cmd}." + Fore.RESET,
-                "Type 'help' for a list of commands."
+            show_error(
+                "CLI",
+                f"'{input_cmd}' is not a recognized command.",
+                "Please enter an existing command. Type 'help' for a list of commands."
             )
         else: # If the input command is blank, show an error message for blank command
-            print(
-                Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
-                Fore.RED + "No command entered." + Fore.RESET,
+            show_error(
+                "CLI",
+                "No command entered.",
                 "Please enter an existing command. Type 'help' for a list of commands."
             )
 
@@ -101,9 +141,9 @@ class CLI:
         try:
             parsed_input = shlex.split(input_cmd) # Parse the command using shell-like syntax
         except ValueError as e: # Handle parsing errors
-            print(
-                Style.BRIGHT + Fore.LIGHTRED_EX + "[Error]" + Style.RESET_ALL,
-                Fore.RED + f"Failed to parse command: {e}." + Fore.RESET,
+            show_error(
+                "CLI",
+                f"Error parsing command: {e}.",
                 "Please check your command syntax and try again."
             )
             return
@@ -128,15 +168,19 @@ class CLI:
                 print(Fore.RESET, end="") # Reset color after the prompt
                 self._dispatch(command) # Dispatch the command
             except (KeyboardInterrupt, EOFError): # Handle Ctrl+C and Ctrl+D gracefully
-                print(
-                    Style.RESET_ALL, 
-                    Style.BRIGHT + Fore.LIGHTRED_EX + "\n[Interrupted]" + Style.RESET_ALL,
-                    Fore.RED + "Exiting the application..." + Fore.RESET
+                print() # Print a newline for better formatting after Ctrl+C or Ctrl+D
+                show_warning(
+                    "CLI",
+                    "Received interrupt signal.",
+                    "Exiting the application."
                 )
                 print("Goodbye!")
                 exit(0) # Exit the application with code 0 on Ctrl+C
 
 if __name__ == "__main__": # Test the CLI application
+    show_info("Test", "This is an informational message.", "Description of the informational message.")
+    show_warning("Test", "This is a warning message.", "Description of the warning message.")
+    show_error("Test", "This is an error message.", "Description of the error message.")
     def infinite_loop(_):
         """A test task that runs an infinite loop, printing a message while running."""
         while True:
