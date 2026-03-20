@@ -59,7 +59,7 @@ class CLI:
                         "has no description available."
                     )
             else:
-                self._show_unknown_cmd(cmd_name)
+                self.show_unknown_cmd(cmd_name)
         else: # If no specific command is provided, show a list of available commands
             print(Fore.GREEN + "Available commands:" + Fore.RESET)
             for method_name in dir(self):
@@ -79,7 +79,7 @@ class CLI:
                         )
             print("To get detailed help for a specific command, type 'help [command]'.")
 
-    def _show_unknown_cmd(self, input_cmd: str = ""):
+    def show_unknown_cmd(self, input_cmd: str = ""):
         """Show an error message for unknown/blank commands.
         Args:
             input_cmd (str): The input command that was not recognized.
@@ -121,7 +121,7 @@ class CLI:
         if callable(method): # If the method exists and is callable, call it with the arguments
             method(args)
         else: # If the command is not recognized, call the default handler
-            self._show_unknown_cmd(cmd)
+            self.show_unknown_cmd(cmd)
 
     def mainloop(self):
         """Start the command loop."""
