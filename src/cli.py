@@ -3,7 +3,7 @@ import shlex # Shell-like syntax parsing
 import string # String manipulation utilities
 from colorama import Fore # Import colorama for colored output in the terminal
 
-from message import * # Message module
+from util.message import * # Message module
 
 class CLI:
     """Command-line interface class."""

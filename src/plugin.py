@@ -3,7 +3,7 @@ import importlib.util # Import importlib for dynamic module loading
 import os # Import os for file system operations
 from pathlib import Path # Import Path from pathlib for handling file paths
 
-from message import * # Message module
+from util.message import * # Message module
 
 class BasePlugin:
     """Base class for plugins in the CLI-Tookit application."""

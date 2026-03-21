@@ -3,7 +3,7 @@ from colorama import Fore, Style
 
 from cli import CLI # Command-line interface module
 from plugin import PluginManager # Plugin manager module
-from message import * # Message module
+from util.message import * # Message module
 
 logo = r"""
          ________      ___           ___                                                    
