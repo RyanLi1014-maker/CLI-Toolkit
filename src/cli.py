@@ -36,9 +36,10 @@ class CLI:
         If a specific command is provided, show detailed help for that command.
         Otherwise, show a list of available commands.
         Usage:
-            help [command]: Show command list or detailed descriptions for [command].
+            help: Show command list.
+            help <command>: Show detailed descriptions for [command].
         Options:
-            command(optional): The specific command to show detailed help for.
+            command: The specific command to show detailed help for.
         """
         if args: # If a specific command is provided, show detailed help for that command
             cmd_name = args[0] # Get the command name from the arguments
