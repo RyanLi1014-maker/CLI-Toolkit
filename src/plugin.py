@@ -16,14 +16,6 @@ class BasePlugin:
         super().__init__()
         self.description = description
 
-    def on_load(self):
-        """Called when the plugin is loaded."""
-        pass
-
-    def on_unload(self):
-        """Called when the plugin is unloaded."""
-        pass
-
 class PluginManager:
     """Manager class for handling plugins in the CLI-Tookit application."""
     def __init__(self, master, plugin_dir: Path = Path.cwd() / "plugin"):
@@ -52,7 +44,6 @@ class PluginManager:
                 if not hasattr(module, "Plugin"): # Check if the plugin class exists
                     raise AttributeError("Plugin class not found in module")
                 plugin_instance: BasePlugin = module.Plugin() # Create an instance of the plugin
-                plugin_instance.on_load() # Call the on_load method
                 self.plugins[plugin_name] = plugin_instance # Add the plugin to the plugin manager
                 for method_name in dir(plugin_instance):
                     if not method_name.startswith("cmd_"):
@@ -74,7 +65,6 @@ class PluginManager:
             plugin_name (str): The name of the plugin to be unloaded.
         """
         if plugin_name in self.plugins: # Check if the plugin is loaded
-            self.plugins[plugin_name].on_unload() # Call the plugin's unload method
             del self.plugins[plugin_name] # Remove the plugin from the dictionary of loaded plugins
             show_info("Plugin", f"Plugin '{plugin_name}' unloaded successfully.")
         else:
