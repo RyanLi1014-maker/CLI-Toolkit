@@ -50,7 +50,7 @@ class CLI:
                         Fore.BLUE + f"Detailed description of {cmd_name}:" + Fore.RESET
                     )
                     lines = method_attr.__doc__.splitlines() # Split the docstring into lines
-                    indented_lines = ["  " + line for line in lines] # Indent each line for better readability
+                    indented_lines = ["    " + line for line in lines] # Indent each line for better readability
                     indented_doc = "\n".join(indented_lines) # Join the indented lines back into a single string
                     print(indented_doc)
                 else: # If the method has no docstring, provide a default message
@@ -70,12 +70,12 @@ class CLI:
                 if callable(method_attr):
                     if method_attr.__doc__: # If the method has a docstring, provide a default message
                         print( # Print the command name without the "cmd_" prefix and the first line of the docstring as a brief description
-                            Fore.BLUE + f"  {method_name[4:]}:" + Fore.RESET,
+                            Fore.BLUE + f"    {method_name[4:]}:" + Fore.RESET,
                             method_attr.__doc__.splitlines()[0]
                         )
                     else: # If the method has no docstring, provide a default message
                         print(
-                            Fore.BLUE + f"  {method_name[4:]}:" + Fore.RESET,
+                            Fore.BLUE + f"    {method_name[4:]}:" + Fore.RESET,
                             "No description available."
                         )
             print("To get detailed help for a specific command, type 'help [command]'.")

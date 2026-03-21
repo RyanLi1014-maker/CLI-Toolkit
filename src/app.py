@@ -61,7 +61,7 @@ class CLI_Toolkit_App(CLI):
             print(Fore.GREEN + "Plugins:" + Style.RESET_ALL)
             for plugin_name, plugin_instance in self.plugin_manager.plugins.items(): # Iterate through all plugins
                 print(
-                    Fore.BLUE + f"  {plugin_name}:" + Style.RESET_ALL,
+                    Fore.BLUE + f"    {plugin_name}:" + Style.RESET_ALL,
                     plugin_instance.description
                 )
         else: # If arguments are provided, handle them
