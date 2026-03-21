@@ -3,7 +3,7 @@ import shlex # Shell-like syntax parsing
 import string # String manipulation utilities
 from colorama import Fore # Import colorama for colored output in the terminal
 
-from message import * # Message module
+from src.util.message import * # Message module
 
 class CLI:
     """Command-line interface class."""
@@ -47,22 +47,22 @@ class CLI:
             if callable(method_attr): # If the method exists and is callable, show its docstring as detailed help
                 if method_attr.__doc__: # If the method has a docstring, provide a default message
                     print(
-                        Fore.BLUE + f"Detailed description of {cmd_name}:" + Fore.RESET
+                        Fore.BLUE + f"Detailed description of {cmd_name}:" + Style.RESET_ALL
                     )
                     lines = method_attr.__doc__.splitlines() # Split the docstring into lines
-                    indented_lines = ["  " + line for line in lines] # Indent each line for better readability
+                    indented_lines = ["    " + line for line in lines] # Indent each line for better readability
                     indented_doc = "\n".join(indented_lines) # Join the indented lines back into a single string
                     print(indented_doc)
                 else: # If the method has no docstring, provide a default message
                     print(
                         "Command",
-                        Fore.BLUE + cmd_name + Fore.RESET,
+                        Fore.BLUE + cmd_name + Style.RESET_ALL,
                         "has no description available."
                     )
             else:
                 self.show_unknown_cmd(cmd_name)
         else: # If no specific command is provided, show a list of available commands
-            print(Fore.GREEN + "Available commands:" + Fore.RESET)
+            print(Fore.GREEN + "Available commands:" + Style.RESET_ALL)
             for method_name in dir(self):
                 if not method_name.startswith("cmd_"):
                     continue
@@ -70,12 +70,12 @@ class CLI:
                 if callable(method_attr):
                     if method_attr.__doc__: # If the method has a docstring, provide a default message
                         print( # Print the command name without the "cmd_" prefix and the first line of the docstring as a brief description
-                            Fore.BLUE + f"  {method_name[4:]}:" + Fore.RESET,
+                            Fore.BLUE + f"    {method_name[4:]}:" + Style.RESET_ALL,
                             method_attr.__doc__.splitlines()[0]
                         )
                     else: # If the method has no docstring, provide a default message
                         print(
-                            Fore.BLUE + f"  {method_name[4:]}:" + Fore.RESET,
+                            Fore.BLUE + f"    {method_name[4:]}:" + Style.RESET_ALL,
                             "No description available."
                         )
             print("To get detailed help for a specific command, type 'help [command]'.")
@@ -132,7 +132,7 @@ class CLI:
                 command = input( # Get user input
                     Fore.LIGHTMAGENTA_EX + self.prompt + Fore.YELLOW
                 )
-                print(Fore.RESET, end="") # Reset color after the prompt
+                print(Style.RESET_ALL, end="") # Reset color after the prompt
                 self._dispatch(command) # Dispatch the command
             except (KeyboardInterrupt, EOFError): # Handle Ctrl+C and Ctrl+D gracefully
                 print() # Print a newline for better formatting after Ctrl+C or Ctrl+D
@@ -143,21 +143,3 @@ class CLI:
                 )
                 print("Goodbye!")
                 exit(0) # Exit the application with code 0 on Ctrl+C
-
-if __name__ == "__main__": # Test the CLI application
-    show_info("Test", "This is an informational message.", "Description of the informational message.")
-    show_warning("Test", "This is a warning message.", "Description of the warning message.")
-    show_error("Test", "This is an error message.", "Description of the error message.")
-    def infinite_loop(_):
-        """A test task that runs an infinite loop, printing a message while running."""
-        while True:
-            print("Running test task...", end="\r")
-    cli = CLI(
-        prompt="CLI-Test> ", # Prompt for user input
-        intro=( # Introduction message displayed when the application starts
-            "Welcome to the CLI Test! Type 'help' to list commands.\n"
-            "Type 'exit' to exit the application."
-        )
-    )
-    setattr(cli, "cmd_infinite_loop", infinite_loop) # Add a test task method to the app instance
-    cli.mainloop()

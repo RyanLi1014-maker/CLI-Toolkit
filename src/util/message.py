@@ -9,7 +9,7 @@ def show_info(category: str = "\b", *content):
     """
     print(
         Style.BRIGHT +Fore.LIGHTBLUE_EX + f"[INFO/{category}]" + Style.RESET_ALL,
-        Fore.BLUE + content[0] + Fore.RESET,
+        Fore.BLUE + content[0] + Style.RESET_ALL,
         *content[1:] if len(content) > 1 else ""
     )
 
@@ -22,7 +22,7 @@ def show_success(category: str = "\b", *content):
     """
     print(
         Style.BRIGHT +Fore.LIGHTGREEN_EX + f"[SUCCESS/{category}]" + Style.RESET_ALL,
-        Fore.GREEN + content[0] + Fore.RESET,
+        Fore.GREEN + content[0] + Style.RESET_ALL,
         *content[1:] if len(content) > 1 else ""
     )
 
@@ -34,7 +34,7 @@ def show_warning(category: str = "\b", *content):
     """
     print(
         Style.BRIGHT + Fore.LIGHTYELLOW_EX + f"[WARNING/{category}]" + Style.RESET_ALL,
-        Fore.YELLOW + content[0] + Fore.RESET,
+        Fore.YELLOW + content[0] + Style.RESET_ALL,
         *content[1:] if len(content) > 1 else ""
     )
 
@@ -46,6 +46,6 @@ def show_error(category: str = "\b", *content):
     """
     print(
         Style.BRIGHT + Fore.LIGHTRED_EX + f"[ERROR/{category}]" + Style.RESET_ALL,
-        Fore.RED + content[0] + Fore.RESET,
+        Fore.RED + content[0] + Style.RESET_ALL,
         *content[1:] if len(content) > 1 else ""
     )
