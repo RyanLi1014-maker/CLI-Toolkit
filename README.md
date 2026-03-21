@@ -10,10 +10,11 @@ A flexible and customizable command-line interface (CLI) application, featuring 
 - Colored terminal output for better user experience
 - `help` command based on smart docstring recognition
 - Shell-like command parsing (supports quotes and special characters)
+- A very easy-to-develop plugin system
 
 ### Todo
 
-- A very easy-to-develop plugin system
+- None
 
 # Installation
 
