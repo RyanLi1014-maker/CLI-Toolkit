@@ -7,7 +7,7 @@ from util.message import * # Message module
 
 class BasePlugin:
     """Base class for plugins in the CLI-Tookit application."""
-    def __init__(self, description: str):
+    def __init__(self, description: str = ""):
         """Initialize the plugin.
         Args:
             name (str): The name of the plugin.
