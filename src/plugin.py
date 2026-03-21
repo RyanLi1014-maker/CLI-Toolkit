@@ -33,6 +33,9 @@ class PluginManager:
         Args:
             plugin_name (str): The name of a plugin to be loaded.
         """
+        if plugin_name in self.plugins: # Check if the plugin is already loaded
+            show_error("Plugin", f"Plugin '{plugin_name}' is already loaded.")
+            return
         plugin_path = self.plugin_dir / f"{plugin_name}.py"
         if plugin_path.exists(): # Check if the plugin file exists
             try: # Try to load the plugin
@@ -51,7 +54,7 @@ class PluginManager:
                     method_attr = getattr(plugin_instance, method_name, None)
                     if callable(method_attr):
                         setattr(self.master, method_name, method_attr)
-                show_info("Plugin", f"Loaded plugin '{plugin_name}'")
+                show_success("Plugin", f"Plugin '{plugin_name}' loaded successfully.")
             except Exception as e: # If an error occurs during loading, display an error message
                 show_error("Plugin", f"Error loading plugin file '{plugin_name}.py': {e}")
                 return
@@ -66,7 +69,7 @@ class PluginManager:
         """
         if plugin_name in self.plugins: # Check if the plugin is loaded
             del self.plugins[plugin_name] # Remove the plugin from the dictionary of loaded plugins
-            show_info("Plugin", f"Plugin '{plugin_name}' unloaded successfully.")
+            show_success("Plugin", f"Plugin '{plugin_name}' unloaded successfully.")
         else:
             show_error("Plugin", f"Plugin '{plugin_name}' not found.")
     
@@ -78,7 +81,7 @@ class PluginManager:
         if plugin_name in self.plugins: # Check if the plugin is loaded
             self.unload_plugin(plugin_name) # Unload the plugin
             self.load_plugin(plugin_name) # Load the plugin again
-            show_info("Plugin", f"Plugin '{plugin_name}' reloaded successfully.")
+            show_success("Plugin", f"Plugin '{plugin_name}' reloaded successfully.")
         else: # If the plugin is not loaded, display an error message
             show_error("Plugin", f"Plugin '{plugin_name}' not found.")
             return
@@ -88,6 +91,8 @@ class PluginManager:
         for file in self.plugin_dir.iterdir(): # Iterate over all files in the plugin directory
             if file.is_file() and file.suffix == ".py": # Check if the file is a Python module
                 plugin_name = file.stem # Get the plugin name from the file name
+                if plugin_name in self.plugins: # Check if the plugin is already loaded
+                    continue
                 self.load_plugin(plugin_name) # Load the plugin
         show_success("Plugin", f"All plugins loaded successfully.")
 
