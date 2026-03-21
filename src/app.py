@@ -49,9 +49,9 @@ class CLI_Toolkit_App(CLI):
                 load: Load a plugin.
                 unload: Unload a plugin.
                 reload: Reload a plugin.
-                load_all: Load all plugins.
-                unload_all: Unload all plugins.
-                reload_all: Reload all plugins.
+                load_all: Load all plugins in the plugin directory.
+                unload_all: Unload all plugins that had already been loaded.
+                reload_all: Reload all plugins that had already been loaded.
             <plugin name>: The name of the plugin to load, unload, or reload.
         """
         if not args: # If no arguments are provided, list all plugins
