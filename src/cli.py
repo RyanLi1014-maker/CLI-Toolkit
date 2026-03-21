@@ -3,7 +3,7 @@ import shlex # Shell-like syntax parsing
 import string # String manipulation utilities
 from colorama import Fore # Import colorama for colored output in the terminal
 
-from message import show_info, show_warning, show_error # Import message functions for displaying informational, warning, and error messages in the terminal with colored output
+from message import * # Message module
 
 class CLI:
     """Command-line interface class."""
