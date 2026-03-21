@@ -17,8 +17,12 @@ class BasePlugin:
 class PluginManager:
     """Manager class for handling plugins in the CLI-Tookit application."""
     def __init__(self, master, plugin_dir: Path = Path.cwd() / "plugin"):
-        """Initialize the plugin manager."""
-        self.master = master
+        """Initialize the plugin manager.
+        Args:
+            master: A reference to the main application, can be used by plugins to interact with the application.
+            plugin_dir (Path, optional): The directory where plugins are stored. Defaults to "plugin
+        """
+        self.master = master # Reference to the main application, can be used by plugins to interact with the application
         self.plugins: dict[str, BasePlugin] = {} # Dictionary to store loaded plugins
         self.plugin_dir = plugin_dir # Directory where plugins are stored
         if not self.plugin_dir.exists(): # Check if the plugin directory exists
@@ -47,10 +51,10 @@ class PluginManager:
                 plugin_instance: BasePlugin = module.Plugin(self.master) # Create an instance of the plugin
                 self.plugins[plugin_name] = plugin_instance # Add the plugin to the plugin manager
                 for method_name in dir(plugin_instance):
-                    if not method_name.startswith("cmd_"):
+                    if not method_name.startswith("cmd_"): # Only consider methods that start with "cmd_" as commands to be added to the main application
                         continue
-                    method_attr = getattr(plugin_instance, method_name, None)
-                    if callable(method_attr):
+                    method_attr = getattr(plugin_instance, method_name, None) # Get the method attribute from the plugin instance
+                    if callable(method_attr): # Check if the method attribute is callable (i.e., it's a method)
                         setattr(self.master, method_name, method_attr)
                 show_success("Plugin", f"Plugin '{plugin_name}' loaded successfully.")
             except Exception as e: # If an error occurs during loading, display an error message
