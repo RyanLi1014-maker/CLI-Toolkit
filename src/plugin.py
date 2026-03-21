@@ -7,14 +7,12 @@ from util.message import * # Message module
 
 class BasePlugin:
     """Base class for plugins in the CLI-Tookit application."""
-    def __init__(self, description: str = ""):
+    def __init__(self, master):
         """Initialize the plugin.
         Args:
-            name (str): The name of the plugin.
-            description (str): The description of the plugin.
+            master: A reference to the main application, can be used by plugins to interact with the application.
         """
-        super().__init__()
-        self.description = description
+        self.master = master # Reference to the main application, can be used by plugins to interact with the application
 
 class PluginManager:
     """Manager class for handling plugins in the CLI-Tookit application."""
@@ -46,7 +44,7 @@ class PluginManager:
                 spec.loader.exec_module(module) # Execute the module to import the plugin
                 if not hasattr(module, "Plugin"): # Check if the plugin class exists
                     raise AttributeError("Plugin class not found in module")
-                plugin_instance: BasePlugin = module.Plugin() # Create an instance of the plugin
+                plugin_instance: BasePlugin = module.Plugin(self.master) # Create an instance of the plugin
                 self.plugins[plugin_name] = plugin_instance # Add the plugin to the plugin manager
                 for method_name in dir(plugin_instance):
                     if not method_name.startswith("cmd_"):

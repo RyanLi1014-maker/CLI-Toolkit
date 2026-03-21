@@ -60,10 +60,16 @@ class CLI_Toolkit_App(CLI):
                 return
             print(Fore.GREEN + "Plugins:" + Style.RESET_ALL)
             for plugin_name, plugin_instance in self.plugin_manager.plugins.items(): # Iterate through all plugins
-                print(
-                    Fore.BLUE + f"    {plugin_name}:" + Style.RESET_ALL,
-                    plugin_instance.description
-                )
+                if plugin_instance.__doc__: # If the plugin has a docstring, show it as description for the plugin
+                    print(
+                        Fore.BLUE + f"    {plugin_name}:" + Style.RESET_ALL,
+                        plugin_instance.__doc__.splitlines()[0] # Show only the first line of the description for brevity
+                    )
+                else: # If the plugin has no docstring, show a default message
+                    print(
+                        Fore.BLUE + f"    {plugin_name}:" + Style.RESET_ALL,
+                        "No description available."
+                    )
         else: # If arguments are provided, handle them
             sub_command = args[0]
             sub_args = args[1:]
