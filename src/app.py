@@ -1,5 +1,5 @@
 """CLI-Tookit Application"""
-from colorama import Fore, Style
+from colorama import Fore, Style # Colorama module
 
 from src.cli import CLI # Command-line interface module
 from src.plugin import PluginManager # Plugin manager module
