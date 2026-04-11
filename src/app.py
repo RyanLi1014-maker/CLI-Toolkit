@@ -157,6 +157,14 @@ class CLI_Toolkit_App:
                 self.console.print("Goodbye!")
                 exit(0)  # Exit the application with code 0 on Ctrl+C
 
+    def cmd_clear(self, _):
+        """Clear the console screen.
+        Usage:
+            clear: Clear the console screen.
+        """
+        self.console.clear()  # Clear the console screen
+        self.logger.info("Console cleared.")
+
     def cmd_exit(self, _):
         """Exit the application.
         Equivalent to Ctrl+C, this command exits the application with code 0.
