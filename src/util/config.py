@@ -24,7 +24,7 @@ class Config(dict):
         # Check if the config directory exists
         if not self.confg_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
-            self.confg_file_path.parent.mkdir()
+            self.confg_file_path.parent.mkdir(parents=True)
         self.default = default_config
 
     def load(self):
@@ -53,7 +53,7 @@ class Config(dict):
         # Check if the configuration directory exists
         if not self.confg_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
-            self.confg_file_path.parent.mkdir()
+            self.confg_file_path.parent.mkdir(parents=True)
         with open(self.confg_file_path, "w") as f:
             json.dump(self, f, indent=4)
 
