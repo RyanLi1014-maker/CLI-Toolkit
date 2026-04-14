@@ -172,32 +172,62 @@ class CLI_Toolkit_App:
 
         Usage:
             alias: List all command aliases.
+            alias <alias_name> [--delete|-d]: Operate on an existing alias with the specified option.
             alias <alias_name> <command>: Create an alias for a command.
 
         Options:
             alias_name: The name of the alias to create.
             command: The command that the alias will execute.
+            --delete, -d: If this flag is present, the specified alias will be deleted instead of created.
         """
+        # Handle the case where the user provides exactly two arguments
         if len(args) == 2:
-            self.logger.debug(f"Creating alias '{args[0]}' for command '{args[1]}'")
-            alias_name, command = args
-            self.config["aliases"][
-                alias_name
-            ] = command  # Add the alias to the configuration
-            self.config.save()  # Save the updated configuration to the file
-            self.logger.info(f"Alias '{alias_name}' created for command '{command}'")
-            self.console.print(
-                f"Alias '{alias_name}' created for command '{command}'.", style="green"
-            )
+
+            # If the delete flag is present, delete the alias
+            if ("--delete" in args) or ("-d" in args):
+                alias_name = args[0]
+                if alias_name in self.config["aliases"]:
+                    del self.config["aliases"][alias_name]
+                    self.config.save()
+                    self.logger.info(f"Alias '{alias_name}' deleted.")
+                    self.console.print(f"Alias '{alias_name}' deleted.", style="green")
+                else:
+                    self.logger.warning(f"Alias '{alias_name}' not found.")
+                    self.console.print(f"Alias '{alias_name}' not found.", style="red")
+
+            # Otherwise, create the alias
+            else:
+                self.logger.debug(f"Creating alias '{args[0]}' for command '{args[1]}'")
+                alias_name, command = args
+                self.config["aliases"][
+                    alias_name
+                ] = command  # Add the alias to the configuration
+                self.config.save()  # Save the updated configuration to the file
+                self.logger.info(
+                    f"Alias '{alias_name}' created for command '{command}'"
+                )
+                self.console.print(
+                    f"Alias '{alias_name}' created for command '{command}'.",
+                    style="green",
+                )
+
+        # Handle the case where the user provides no arguments, which means they want to list all aliases
         elif len(args) == 0:
+
             self.logger.debug("Listing all command aliases.")
-            if not self.config["aliases"]:  # Check if there are any aliases defined
+
+            # Check if there are any aliases defined
+            if not self.config["aliases"]:
                 self.console.print("No command aliases defined.")
                 return
+
+            # Iterate over all aliases and their corresponding commands
             alias_list = [
                 f"[blue]{alias}[/blue]: {cmd}"
                 for alias, cmd in self.config["aliases"].items()
             ]
+
+            # Print the list of aliases in a panel
             self.console.print(
                 Panel("\n".join(alias_list), title="Command Aliases", highlight=True)
             )
