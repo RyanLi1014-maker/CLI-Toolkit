@@ -144,7 +144,7 @@ class CLI_Toolkit_App:
         self.console.rule()
         self.console.print(  # Print the welcome message
             f"Welcome to [bold yellow]CLI-Toolkit[/bold yellow]!",
-            "Type `help` for a list of available commands.",
+            "Type 'help' for a list of available commands.",
         )
         # Infinite loop to continuously prompt for user input and dispatch commands
         while True:
@@ -202,13 +202,13 @@ class CLI_Toolkit_App:
                     self.console.print(
                         Panel(
                             method_attr.__doc__.strip(),
-                            title=f"Detailed Help for `{cmd_name}` command",
+                            title=f"Detailed Help for '{cmd_name}' command",
                             highlight=True,
                         )
                     )
                 else:  # If the method has no docstring, provide a default message
                     self.console.print(
-                        f"Command `{cmd_name}` has no description available."
+                        f"Command '{cmd_name}' has no description available."
                     )
             else:  # If the method doesn't exist or isn't callable, show an error message
                 self.show_unknown_cmd(cmd_name)
@@ -248,7 +248,7 @@ class CLI_Toolkit_App:
                 )
             )
             self.console.print(
-                "To get detailed help for a specific command, type `help <command>`."
+                "To get detailed help for a specific command, type 'help <command>'."
             )
 
     def cmd_plg(self, args: list):
@@ -305,7 +305,7 @@ class CLI_Toolkit_App:
                             )
                     else:  # Otherwise, show a message for blank command
                         self.logger.info(
-                            "No plugin name provided for `plg load` command."
+                            "No plugin name provided for 'plg load' command."
                         )
                         self.show_unknown_cmd()
                 case "unload":
@@ -326,7 +326,7 @@ class CLI_Toolkit_App:
                             )
                     else:  # Otherwise, show a message for blank command
                         self.logger.info(
-                            "No plugin name provided for `plg unload` command."
+                            "No plugin name provided for 'plg unload' command."
                         )
                         self.show_unknown_cmd()
                 case "reload":
@@ -347,7 +347,7 @@ class CLI_Toolkit_App:
                             )
                     else:  # Otherwise, show a message for blank command
                         self.logger.info(
-                            "No plugin name provided for `plg reload` command."
+                            "No plugin name provided for 'plg reload' command."
                         )
                         self.show_unknown_cmd()
                 case "load_all":
