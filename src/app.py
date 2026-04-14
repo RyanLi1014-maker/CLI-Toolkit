@@ -69,9 +69,13 @@ class CLI_Toolkit_App:
         self.config = Config(
             config_path=Path("CLI-Toolkit.json"),  # Path to the configuration file
             default_config={  # Default configuration values
+                "aliases": {  # Command aliases
+                    "?": "help",  # Alias "?" for "help" command
+                    "quit": "exit",  # Alias "quit" for "exit" command
+                },
                 "plg": {
                     "load_on_start": True,  # Whether to automatically load all plugins in the plugin directory when the application starts
-                }
+                },
             },
         )
         self.config.load()  # Load the configuration from the file
@@ -119,6 +123,12 @@ class CLI_Toolkit_App:
                     f"An unexpected error occurred: {e}",
                     style="red",
                 )
+        elif (
+            cmd in self.config["aliases"]
+        ):  # If the command is an alias, resolve it and call the corresponding method
+            alias_cmd = self.config["aliases"][cmd]
+            self.logger.info(f"Resolving alias '{cmd}' to command '{alias_cmd}'")
+            self._dispatch(alias_cmd)  # Recursively dispatch the resolved command
         else:  # If the command is not recognized, call the default handler
             self.show_unknown_cmd(cmd)
 
@@ -157,8 +167,44 @@ class CLI_Toolkit_App:
                 self.console.print("Goodbye!")
                 exit(0)  # Exit the application with code 0 on Ctrl+C
 
+    def cmd_alias(self, args: list):
+        """Create a command alias.
+
+        Usage:
+            alias: List all command aliases.
+            alias <alias_name> <command>: Create an alias for a command.
+
+        Options:
+            alias_name: The name of the alias to create.
+            command: The command that the alias will execute.
+        """
+        if len(args) == 2:
+            self.logger.debug(f"Creating alias '{args[0]}' for command '{args[1]}'")
+            alias_name, command = args
+            self.config["aliases"][
+                alias_name
+            ] = command  # Add the alias to the configuration
+            self.config.save()  # Save the updated configuration to the file
+            self.logger.info(f"Alias '{alias_name}' created for command '{command}'")
+            self.console.print(
+                f"Alias '{alias_name}' created for command '{command}'.", style="green"
+            )
+        elif len(args) == 0:
+            self.logger.debug("Listing all command aliases.")
+            if not self.config["aliases"]:  # Check if there are any aliases defined
+                self.console.print("No command aliases defined.")
+                return
+            alias_list = [
+                f"[blue]{alias}[/blue]: {cmd}"
+                for alias, cmd in self.config["aliases"].items()
+            ]
+            self.console.print(
+                Panel("\n".join(alias_list), title="Command Aliases", highlight=True)
+            )
+
     def cmd_clear(self, _):
         """Clear the console screen.
+
         Usage:
             clear: Clear the console screen.
         """
