@@ -81,7 +81,7 @@ from src.plugin import BasePlugin  # Import the BasePlugin class from the plugin
 class Plugin(BasePlugin):
     """Description of the plugin."""
 
-    VERSION = "1.2.3"
+    VERSION = (1, 2, 3)  # Register the version number for the plugin
 
     def cmd_my_command(self, _): ...
 

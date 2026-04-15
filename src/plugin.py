@@ -26,7 +26,7 @@ class PluginNotFoundWarning(PluginWarning):
 class BasePlugin:
     """Base class for plugins in the CLI-Tookit application."""
 
-    VERSION = "0.0.0"  # Version number of the plugin
+    VERSION: tuple[int, int, int] = (0, 0, 0)  # Version number of the plugin
 
     def __init__(self, master):
         """Initialize the plugin.

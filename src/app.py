@@ -13,10 +13,8 @@ from src.plugin import PluginManager  # Plugin manager module
 from src.util.config import Config  # Configuration utilities module
 
 # Define constants
-PYTHON_VERSION = (  # Python version
-    f"{version_info.major}.{version_info.minor}.{version_info.micro}"
-)
-CLIT_VERSION = "0.1.0"  # CLI-Toolkit version
+PYTHON_VERSION = (version_info.major, version_info.minor, version_info.micro)
+CLIT_VERSION = (0, 1, 0)  # CLI-Toolkit version
 CLIT_LOGO = r"""
          ________      ___           ___                                                    
         |\   ____\    |\  \         |\  \                                                   
@@ -481,14 +479,14 @@ class CLI_Toolkit_App:
 
         # Display Python version and CLI-Toolkit version
         app_version = [
-            f"[blue]Python[/blue] v{PYTHON_VERSION}",
-            f"[blue]CLI-Toolkit[/blue] v{CLIT_VERSION}",
+            f"[blue]Python[/blue] v{".".join([str(part) for part in PYTHON_VERSION])}",
+            f"[blue]CLI-Toolkit[/blue] v{".".join([str(part) for part in self.VERSION])}",
         ]
         self.console.print(Panel("\n".join(app_version), title="Application Versions"))
 
         # Display plugin versions
         plugin_versions_list = [
-            f"[blue]{plugin_name}[/blue] v{plugin.VERSION}"
+            f"[blue]{plugin_name}[/blue] v{".".join([str(part) for part in plugin.VERSION])}"
             for plugin_name, plugin in self.plugin_manager.plugins.items()
         ]
         self.console.print(
