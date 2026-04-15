@@ -94,10 +94,8 @@ class PluginManager:
                 # Skip object name that don't start with "cmd_"
                 if not method_name.startswith("cmd_"):
                     continue
-                # Get the object attribute from the plugin instance
-                method_attr = getattr(plugin_instance, method_name, None)
-                # Add the method to the main application
-                if callable(method_attr):  # Check if the method attribute is callable
+                # Add the method to the main application if it is callable
+                if callable(method_attr := getattr(plugin_instance, method_name, None)):
                     setattr(self.master, method_name, method_attr)
                     self.logger.debug(f"Added command '{method_name[4:]}' to CLI.")
 
@@ -126,10 +124,10 @@ class PluginManager:
                 # Skip methods that don't start with "cmd_"
                 if not method_name.startswith("cmd_"):
                     continue
-                # Get the method attribute
-                method_attr = getattr(plugin_instance, method_name, None)
                 # Remove the method from the main application
-                if callable(method_attr) and hasattr(self.master, method_name):
+                if callable(getattr(plugin_instance, method_name, None)) and hasattr(
+                    self.master, method_name
+                ):
                     delattr(self.master, method_name)
                     self.logger.debug(f"Removed command '{method_name[4:]}' from CLI.")
 

@@ -93,6 +93,7 @@ class CLI_Toolkit_App:
             input_cmd (str): The raw input command entered by the user.
         """
         self.logger.info(f"Dispatching command: '{input_cmd}'")
+
         # Parse the command using shell-like syntax
         try:
             parsed_input = shlex.split(
@@ -103,14 +104,15 @@ class CLI_Toolkit_App:
                 f"[red]Error parsing command: {e}.[/red] Please check your command syntax and try again."
             )
             return
+
         # Get the command name
         cmd = parsed_input[0] if parsed_input else ""
+
         # Get the command arguments
         args = parsed_input[1:] if len(parsed_input) > 1 else []
-        # Get the method corresponding to the command
-        method = getattr(self, f"cmd_{cmd}", None)
+
         # If the method exists and is callable, call it with the arguments
-        if callable(method):
+        if callable(method := getattr(self, f"cmd_{cmd}", None)):
             self.logger.info(f"Calling method: {method}")
             try:
                 method(args)
@@ -123,12 +125,14 @@ class CLI_Toolkit_App:
                     f"An unexpected error occurred: {e}",
                     style="red",
                 )
+
         elif (
             cmd in self.config["aliases"]
         ):  # If the command is an alias, resolve it and call the corresponding method
             alias_cmd = self.config["aliases"][cmd]
             self.logger.info(f"Resolving alias '{cmd}' to command '{alias_cmd}'")
             self._dispatch(alias_cmd)  # Recursively dispatch the resolved command
+
         else:  # If the command is not recognized, call the default handler
             self.show_unknown_cmd(cmd)
 
@@ -268,16 +272,12 @@ class CLI_Toolkit_App:
             cmd_name = args[0]  # Get the command name from the arguments
             self.logger.debug(f"Showing help for command '{cmd_name}'")
 
-            # Get the method attribute for the command
-            method_attr = getattr(self, f"cmd_{cmd_name}", None)
-            self.logger.debug(f"Method attribute: {method_attr}")
-
             # If the method exists and is callable, show its docstring as detailed help
-            if callable(method_attr):
-                if method_attr.__doc__:
+            if callable(method_attr := getattr(self, f"cmd_{cmd_name}", None)):
+                if method_doc := method_attr.__doc__:
                     self.console.print(
                         Panel(
-                            method_attr.__doc__.strip(),
+                            method_doc.strip(),
                             title=f"Detailed Help for '{cmd_name}' command",
                             highlight=True,
                         )
@@ -298,16 +298,14 @@ class CLI_Toolkit_App:
                 # Ignore methods that don't start with "cmd_"
                 if not method_name.startswith("cmd_"):
                     continue
-                # Get the method attribute for the command
-                method_attr = getattr(self, method_name, None)
                 # If the method exists and is callable, add it to the command list
-                if callable(method_attr):
-                    if method_attr.__doc__:
+                if callable(method_attr := getattr(self, method_name, None)):
+                    if method_doc := method_attr.__doc__:
                         self.logger.debug(
                             f"Method '{method_name}' has docstring. Adding to list."
                         )
                         command_list.append(
-                            f"[blue]{method_name[4:]}[/blue]: {method_attr.__doc__.splitlines()[0]}"
+                            f"[blue]{method_name[4:]}[/blue]: {method_doc.splitlines()[0]}"
                         )
                     else:  # If the method has no docstring, provide a default message
                         self.logger.debug(
@@ -454,12 +452,12 @@ class CLI_Toolkit_App:
             # Iterate over all plugins
             plugin_list = []  # List to hold plugin names and descriptions
             for plugin_name, plugin_instance in self.plugin_manager.plugins.items():
-                if plugin_instance.__doc__:
+                if plugin_doc := plugin_instance.__doc__:
                     self.logger.debug(
                         f"Plugin '{plugin_name}' has docstring. Adding to list."
                     )
                     plugin_list.append(
-                        f"[blue]{plugin_name}[/blue]: {plugin_instance.__doc__.splitlines()[0]}"
+                        f"[blue]{plugin_name}[/blue]: {plugin_doc.splitlines()[0]}"
                     )
                 else:  # If the plugin has no docstring, show a default message
                     self.logger.debug(
