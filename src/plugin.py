@@ -68,6 +68,10 @@ class PluginManager:
         if not self.plugin_dir.exists():  # Check if the plugin directory exists
             self.logger.warning("Plugin directory does not exist. Creating...")
             self.plugin_dir.mkdir()
+        if (  # Check if the plugin name is valid
+            ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name
+        ):
+            raise ValueError(f"Invalid plugin name: {plugin_name}")
 
         # Get the path to the plugin file
         plugin_path = self.plugin_dir / f"{plugin_name}.py"
