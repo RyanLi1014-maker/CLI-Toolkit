@@ -82,7 +82,9 @@ class PluginManager:
             module = importlib.util.module_from_spec(spec)  # Load the module
             spec.loader.exec_module(module)  # Execute the module to import the plugin
             if not hasattr(module, "Plugin"):  # Check if the plugin class exists
-                self.logger.error("Plugin class does not exist.")
+                raise AttributeError(
+                    f"Plugin '{plugin_name}' does not have a 'Plugin' class."
+                )
 
             # Create an instance of the plugin class
             plugin_instance: BasePlugin = module.Plugin(self.master)
