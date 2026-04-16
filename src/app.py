@@ -201,6 +201,15 @@ class CLI_Toolkit_App:
             else:
                 self.logger.debug(f"Creating alias '{args[0]}' for command '{args[1]}'")
                 alias_name, command = args
+                if command in self.config["aliases"].keys():
+                    self.logger.warning(
+                        f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias."
+                    )
+                    self.console.print(
+                        f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias.",
+                        style="red",
+                    )
+                    return
                 self.config["aliases"][
                     alias_name
                 ] = command  # Add the alias to the configuration
