@@ -65,12 +65,10 @@ class CLI_Toolkit_App:
 
         # Initialize the configuration
         self.config = Config(
-            config_path=Path("CLI-Toolkit.json"),  # Path to the configuration file
+            config_path=Path(  # Path to the configuration file
+                "CLI-Toolkit/config.json"
+            ),
             default_config={  # Default configuration values
-                "aliases": {  # Command aliases
-                    "?": "help",  # Alias "?" for "help" command
-                    "quit": "exit",  # Alias "quit" for "exit" command
-                },
                 "plg": {
                     "load_on_start": True,  # Whether to automatically load all plugins in the plugin directory when the application starts
                 },
@@ -84,6 +82,18 @@ class CLI_Toolkit_App:
         if self.config["plg"]["load_on_start"]:  # Load all plugins
             self.plugin_manager.load_all_plugins()
         self.logger.debug(f"Plugin manager initialized.")
+
+        # Initialize aliases
+        self.aliases = Config(
+            config_path=Path(
+                "CLI-Toolkit/aliases.json"
+            ),  # Path to the aliases configuration file
+            default_config={  # Default aliases from the main configuration
+                "?": "help",  # Alias "?" for "help" command
+                "quit": "exit",  # Alias "quit" for "exit" command
+            },
+        )
+        self.aliases.load()  # Load the aliases from the file
 
     def _dispatch(self, input_cmd: str):
         """Dispatch the command to the appropriate handler.
@@ -125,10 +135,10 @@ class CLI_Toolkit_App:
                 )
 
         elif (
-            cmd in self.config["aliases"]
+            cmd in self.aliases
         ):  # If the command is an alias, resolve it and call the corresponding method
-            alias_cmd = self.config["aliases"][cmd]
-            if alias_cmd in self.config["aliases"].keys():
+            alias_cmd = self.aliases[cmd]
+            if alias_cmd in self.aliases.keys():
                 self.logger.warning(
                     f"Alias '{cmd}' resolves to '{alias_cmd}', which is also an alias. This may cause unexpected behavior. Canseling command dispatch..."
                 )
@@ -193,8 +203,8 @@ class CLI_Toolkit_App:
             # If the delete flag is present, delete the alias
             if ("--delete" in args) or ("-d" in args):
                 alias_name = args[0]
-                if alias_name in self.config["aliases"]:
-                    del self.config["aliases"][alias_name]
+                if alias_name in self.aliases:
+                    del self.aliases[alias_name]
                     self.config.save()
                     self.logger.info(f"Alias '{alias_name}' deleted.")
                     self.console.print(f"Alias '{alias_name}' deleted.", style="green")
@@ -206,7 +216,7 @@ class CLI_Toolkit_App:
             else:
                 self.logger.debug(f"Creating alias '{args[0]}' for command '{args[1]}'")
                 alias_name, command = args
-                if command in self.config["aliases"].keys():
+                if command in self.aliases.keys():
                     self.logger.warning(
                         f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias."
                     )
@@ -215,7 +225,7 @@ class CLI_Toolkit_App:
                         style="red",
                     )
                     return
-                self.config["aliases"][
+                self.aliases[
                     alias_name
                 ] = command  # Add the alias to the configuration
                 self.config.save()  # Save the updated configuration to the file
@@ -233,14 +243,14 @@ class CLI_Toolkit_App:
             self.logger.debug("Listing all command aliases.")
 
             # Check if there are any aliases defined
-            if not self.config["aliases"]:
+            if not self.aliases:
                 self.console.print("No command aliases defined.")
                 return
 
             # Iterate over all aliases and their corresponding commands
             alias_list = [
                 f"[blue]{alias}[/blue]: {cmd}"
-                for alias, cmd in self.config["aliases"].items()
+                for alias, cmd in self.aliases.items()
             ]
 
             # Print the list of aliases in a panel
