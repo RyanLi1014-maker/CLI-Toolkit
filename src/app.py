@@ -140,7 +140,7 @@ class CLI_Toolkit_App:
             alias_cmd = self.aliases[cmd]
             if alias_cmd in self.aliases.keys():
                 self.logger.warning(
-                    f"Alias '{cmd}' resolves to '{alias_cmd}', which is also an alias. This may cause unexpected behavior. Canseling command dispatch..."
+                    f"Alias '{cmd}' resolves to '{alias_cmd}', which is also an alias. This may cause unexpected behavior. Cancelling command dispatch..."
                 )
                 return
             self.logger.info(f"Resolving alias '{cmd}' to command '{alias_cmd}'")
