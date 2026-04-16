@@ -30,7 +30,7 @@ class Config(dict):
     def load(self):
         """Load the configuration from the file."""
         if self.config_file_path.exists():  # Check if the configuration file exists
-            with open(self.config_file_path, "r") as f:
+            with open(self.config_file_path, "r", encoding="utf-8") as f:
                 try:
                     content = json.load(f)
                 except json.JSONDecodeError:
@@ -54,7 +54,7 @@ class Config(dict):
         if not self.config_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
             self.config_file_path.parent.mkdir(parents=True)
-        with open(self.config_file_path, "w") as f:
+        with open(self.config_file_path, "w", encoding="utf-8") as f:
             json.dump(self, f, indent=4)
 
     def __getitem__(self, key):
