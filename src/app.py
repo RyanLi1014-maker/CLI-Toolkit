@@ -128,6 +128,11 @@ class CLI_Toolkit_App:
             cmd in self.config["aliases"]
         ):  # If the command is an alias, resolve it and call the corresponding method
             alias_cmd = self.config["aliases"][cmd]
+            if alias_cmd in self.config["aliases"].keys():
+                self.logger.warning(
+                    f"Alias '{cmd}' resolves to '{alias_cmd}', which is also an alias. This may cause unexpected behavior. Canseling command dispatch..."
+                )
+                return
             self.logger.info(f"Resolving alias '{cmd}' to command '{alias_cmd}'")
             self._dispatch(alias_cmd)  # Recursively dispatch the resolved command
 
