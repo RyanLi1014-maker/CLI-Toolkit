@@ -205,7 +205,7 @@ class CLI_Toolkit_App:
                 alias_name = args[0]
                 if alias_name in self.aliases:
                     del self.aliases[alias_name]
-                    self.config.save()
+                    self.aliases.save()
                     self.logger.info(f"Alias '{alias_name}' deleted.")
                     self.console.print(f"Alias '{alias_name}' deleted.", style="green")
                 else:
@@ -228,7 +228,7 @@ class CLI_Toolkit_App:
                 self.aliases[
                     alias_name
                 ] = command  # Add the alias to the configuration
-                self.config.save()  # Save the updated configuration to the file
+                self.aliases.save()  # Save the updated configuration to the file
                 self.logger.info(
                     f"Alias '{alias_name}' created for command '{command}'"
                 )
