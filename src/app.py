@@ -225,9 +225,7 @@ class CLI_Toolkit_App:
                         style="red",
                     )
                     return
-                self.aliases[
-                    alias_name
-                ] = command  # Add the alias to the configuration
+                self.aliases[alias_name] = command  # Add the alias to the configuration
                 self.aliases.save()  # Save the updated configuration to the file
                 self.logger.info(
                     f"Alias '{alias_name}' created for command '{command}'"
@@ -249,13 +247,20 @@ class CLI_Toolkit_App:
 
             # Iterate over all aliases and their corresponding commands
             alias_list = [
-                f"[blue]{alias}[/blue]: {cmd}"
-                for alias, cmd in self.aliases.items()
+                f"[blue]{alias}[/blue]: {cmd}" for alias, cmd in self.aliases.items()
             ]
 
             # Print the list of aliases in a panel
             self.console.print(
                 Panel("\n".join(alias_list), title="Command Aliases", highlight=True)
+            )
+
+        else:  # If the user provides invalid arguments, show an error message
+            self.logger.warning(
+                f"Invalid alias arguments: {args}. Expected 0 or 2 arguments."
+            )
+            self.console.print(
+                "Invalid alias usage. For more information, type 'help alias'."
             )
 
     def cmd_clear(self, _):
