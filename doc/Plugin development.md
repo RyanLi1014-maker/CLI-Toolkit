@@ -102,7 +102,7 @@ from src.plugin import BasePlugin  # Import the BasePlugin class from the plugin
 class Plugin(BasePlugin):
     """Description of the plugin."""
 
-    VERSION = "1.2.3"
+    VERSION = (1, 2, 3)
 
     def cmd_print(self, _):
         """Log messages."""
@@ -135,7 +135,7 @@ from src.plugin import BasePlugin  # Import the BasePlugin class from the plugin
 class Plugin(BasePlugin):
     """Description of the plugin."""
 
-    VERSION = "1.2.3"
+    VERSION = (1, 2, 3)
 
     def cmd_log(self, _):
         """Log messages."""
