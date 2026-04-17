@@ -1,6 +1,6 @@
 # Plugin Development
 
-CLI-Toolkit provides a plugin system that allows you to add new commands to the CLI-Toolkit. You can add new commands to the CLI-Toolkit by register your commands as several lines of code.
+CLI-Toolkit provides a plugin system that allows you to add new commands to the CLI-Toolkit. You can add new commands to the CLI-Toolkit by registering your commands with just a few lines of code.
 
 ## Contents
 
