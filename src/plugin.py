@@ -89,6 +89,12 @@ class PluginManager:
                 raise AttributeError(
                     f"Plugin '{plugin_name}' does not have a 'Plugin' class."
                 )
+            if not issubclass(  # Check if the plugin class is a subclass of BasePlugin
+                module.Plugin, BasePlugin
+            ):
+                raise TypeError(
+                    f"Plugin '{plugin_name}' does not inherit from BasePlugin."
+                )
 
             # Create an instance of the plugin class
             plugin_instance: BasePlugin = module.Plugin(self.master)
