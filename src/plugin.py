@@ -115,7 +115,7 @@ class PluginManager:
             self.logger.info(f"Loaded plugin '{plugin_name}'.")
 
         else:  # If the plugin file does not exist, raise an error
-            raise FileNotFoundError(f"Plugin file '{plugin_name}.py' does not exist.")
+            raise PluginNotFoundWarning(f"Plugin '{plugin_name}' not found.")
 
     def unload_plugin(self, plugin_name: str):
         """Unload a plugin by its name.
