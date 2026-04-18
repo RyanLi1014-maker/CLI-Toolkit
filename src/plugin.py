@@ -4,6 +4,8 @@ import importlib.util  # Import importlib for dynamic module loading
 from pathlib import Path  # Import Path from pathlib for handling file paths
 import logging  # Import logging for logging
 
+from src.util.config import SetConfig  # Import SetConfig from the config module
+
 
 class PluginWarning(Warning):
     """Custom warning class for plugin-related warnings."""
@@ -13,6 +15,12 @@ class PluginWarning(Warning):
 
 class PluginAlreadyLoadedWarning(PluginWarning):
     """Warning raised when a plugin is already loaded."""
+
+    pass
+
+
+class PluginDisabledWarning(PluginWarning):
+    """Warning raised when a plugin is disabled."""
 
     pass
 
@@ -49,6 +57,9 @@ class PluginManager:
         self.logger = logging.getLogger("PluginManager")
         self.plugins: dict[str, BasePlugin] = {}  # Dictionary to store loaded plugins
         self.plugin_dir = plugin_dir  # Directory where plugins are stored
+        self.disabled_plugins = SetConfig(  # Set of disabled plugins
+            Path("CLI-Toolkit/disabled_plugins.json")
+        )
         if not self.plugin_dir.exists():  # Check if the plugin directory exists
             self.logger.warning("Plugin directory does not exist. Creating...")
             self.plugin_dir.mkdir()
@@ -61,17 +72,19 @@ class PluginManager:
         self.logger.info(f"Loading plugin '{plugin_name}'.")
 
         # Check before loading
+        if plugin_name in self.disabled_plugins:  # Check if the plugin is disabled
+            raise PluginDisabledWarning(f"Plugin '{plugin_name}' is disabled.")
         if plugin_name in self.plugins:  # Check if the plugin is already loaded
             raise PluginAlreadyLoadedWarning(
                 f"Plugin '{plugin_name}' is already loaded."
             )
-        if not self.plugin_dir.exists():  # Check if the plugin directory exists
-            self.logger.warning("Plugin directory does not exist. Creating...")
-            self.plugin_dir.mkdir()
         if (  # Check if the plugin name is valid
             ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name
         ):
             raise ValueError(f"Invalid plugin name: {plugin_name}")
+        if not self.plugin_dir.exists():  # Check if the plugin directory exists
+            self.logger.warning("Plugin directory does not exist. Creating...")
+            self.plugin_dir.mkdir()
 
         # Get the path to the plugin file
         plugin_path = self.plugin_dir / f"{plugin_name}.py"
@@ -162,6 +175,37 @@ class PluginManager:
         self.load_plugin(plugin_name)  # Load the plugin again
         self.logger.info(f"Reloaded plugin '{plugin_name}'.")
 
+    def disable_plugin(self, plugin_name: str):
+        """Disable a plugin by its name.
+        Args:
+            plugin_name (str): The name of the plugin to be disabled.
+        """
+        self.logger.info(f"Disabling plugin '{plugin_name}'.")
+        # Check if the plugin is already disabled
+        if plugin_name in self.disabled_plugins:
+            raise PluginDisabledWarning(f"Plugin '{plugin_name}' is already disabled.")
+        
+        self.disabled_plugins.add(plugin_name)
+        self.disabled_plugins.save()  # Save the updated set of disabled plugins to the file
+        if plugin_name in self.plugins:  # If the plugin is currently loaded, unload it
+            self.unload_plugin(plugin_name)
+        self.logger.info(f"Disabled plugin '{plugin_name}'.")
+
+    def enable_plugin(self, plugin_name: str):
+        """Enable a plugin by its name.
+        Args:
+            plugin_name (str): The name of the plugin to be enabled.
+        """
+        self.logger.info(f"Enabling plugin '{plugin_name}'.")
+        # Check if the plugin is not disabled
+        if not plugin_name in self.disabled_plugins:
+            raise PluginNotFoundWarning(f"Plugin '{plugin_name}' is not disabled.")
+
+        self.disabled_plugins.remove(plugin_name)
+        self.disabled_plugins.save()  # Save the updated set of disabled plugins to the file
+        self.load_plugin(plugin_name)  # Load the plugin
+        self.logger.info(f"Enabled plugin '{plugin_name}'.")
+
     def load_all_plugins(self):
         """Load all plugins in the plugin directory.
         Returns:
@@ -175,6 +219,15 @@ class PluginManager:
             if file.is_file() and file.suffix == ".py":  # Skip non-Python files
                 # Get the plugin name from the file name
                 plugin_name = file.stem
+                # Skip disabled plugins and already loaded plugins
+                if plugin_name in self.disabled_plugins:  # Skip disabled plugins
+                    self.logger.info(f"Plugin '{plugin_name}' is disabled. Skipping...")
+                    continue
+                if plugin_name in self.plugins:  # Skip already loaded plugins
+                    self.logger.info(
+                        f"Plugin '{plugin_name}' is already loaded. Skipping..."
+                    )
+                    continue
                 # Load the plugin
                 try:  # Try to load the plugin
                     self.load_plugin(plugin_name)

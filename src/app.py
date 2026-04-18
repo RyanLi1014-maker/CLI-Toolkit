@@ -377,6 +377,8 @@ class CLI_Toolkit_App:
                 'load' | 'l': Load a plugin. Requires one additional argument: the name of the plugin to load.
                 'unload' | 'u': Unload a plugin. Requires one additional argument: the name of the plugin to unload.
                 'reload' | 'r': Reload a plugin. Requires one additional argument: the name of the plugin to reload.
+                'disable' | 'dis': Disable a plugin. Requires one additional argument: the name of the plugin to disable.
+                'enable' | 'en': Enable a plugin. Requires one additional argument: the name of the plugin to enable.
                 'load_all' | 'la': Load all plugins in the plugin directory.
                 'unload_all' | 'ua': Unload all plugins that had already been loaded.
                 'reload_all' | 'ra': Reload all plugins that had already been loaded.
@@ -491,6 +493,70 @@ class CLI_Toolkit_App:
                             "Invalid plugin reload usage. For more information, type 'help plg'.",
                             style="red",
                         )
+                case "disable" | "dis":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, disable the plugin
+                        try:
+                            self.plugin_manager.disable_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to disable plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to disable plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
+                        except Exception as e:  # Catch any exceptions
+                            self.logger.error(
+                                f"Failed to disable plugin '{sub_args[0]}': {e}"
+                            )
+                            self.console.print(
+                                f"Failed to disable plugin '{sub_args[0]}': {e}",
+                                style="red",
+                            )
+                        else:
+                            self.console.print(
+                                f"Disabled plugin: {sub_args[0]}", style="green"
+                            )
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin disable usage.")
+                        self.console.print(
+                            "Invalid plugin disable usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
+                case "enable" | "en":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, enable the plugin
+                        try:
+                            self.plugin_manager.enable_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to enable plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to enable plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
+                        except Exception as e:  # Catch any exceptions
+                            self.logger.error(
+                                f"Failed to enable plugin '{sub_args[0]}': {e}"
+                            )
+                            self.console.print(
+                                f"Failed to enable plugin '{sub_args[0]}': {e}",
+                                style="red",
+                            )
+                        else:
+                            self.console.print(
+                                f"Enabled plugin: {sub_args[0]}", style="green"
+                            )
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin enable usage.")
+                        self.console.print(
+                            "Invalid plugin enable usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
                 case "load_all" | "la":
                     if (
                         not sub_args
@@ -540,11 +606,6 @@ class CLI_Toolkit_App:
         else:  # If no arguments are provided, list all plugins
             self.logger.debug("Listing all plugins.")
 
-            # Check if there are any plugins loaded
-            if not self.plugin_manager.plugins:
-                self.console.print("No plugins loaded.")
-                return
-
             # Iterate over all loaded plugins
             loaded_plugin = []  # List to hold loaded plugin names and descriptions
             for plugin_name, plugin_instance in self.plugin_manager.plugins.items():
@@ -563,6 +624,7 @@ class CLI_Toolkit_App:
                         f"[blue]{plugin_name}[/blue]: No description available."
                     )
 
+            # Check for unloaded plugins in the plugin directory
             unloaded_plugin = []  # List to hold unloaded plugin names and descriptions
             for file in self.plugin_manager.plugin_dir.iterdir():
                 if file.is_file() and file.suffix == ".py":  # Skip non-Python files
@@ -571,14 +633,43 @@ class CLI_Toolkit_App:
                     if plugin_name not in self.plugin_manager.plugins:
                         unloaded_plugin.append(f"[blue]{plugin_name}[/blue]: Unloaded")
 
+            disabled_plugin = []  # List to hold disabled plugin names and descriptions
+            for plugin_name in self.plugin_manager.disabled_plugins:
+                disabled_plugin.append(f"[blue]{plugin_name}[/blue]: Disabled")
+
             # Print plugin list message
-            self.console.print(
-                Panel("\n".join(loaded_plugin), title="Loaded Plugins", highlight=True)
-            )
-            self.console.print(
-                Panel(
-                    "\n".join(unloaded_plugin), title="Unloaded Plugins", highlight=True
+            (  # Print the list of loaded plugins in a panel if there are any, otherwise show a message that no plugins are loaded
+                self.console.print(
+                    Panel(
+                        "\n".join(loaded_plugin), title="Loaded Plugins", highlight=True
+                    )
                 )
+                if loaded_plugin
+                else self.console.print("No plugins loaded.")
+            )
+            (  # Print the list of unloaded plugins in a panel if there are any, otherwise show a message that no unloaded plugins are found
+                self.console.print(
+                    Panel(
+                        "\n".join(unloaded_plugin),
+                        title="Unloaded Plugins",
+                        highlight=True,
+                    )
+                )
+                if unloaded_plugin
+                else self.console.print(
+                    "No unloaded plugins found in the plugin directory."
+                )
+            )
+            (  # Print the list of disabled plugins in a panel if there are any, otherwise show a message that no disabled plugins are found
+                self.console.print(
+                    Panel(
+                        "\n".join(disabled_plugin),
+                        title="Disabled Plugins",
+                        highlight=True,
+                    )
+                )
+                if disabled_plugin
+                else self.console.print("No disabled plugins.")
             )
 
     def cmd_version(self, _):
