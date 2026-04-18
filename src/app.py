@@ -10,7 +10,7 @@ from rich.panel import Panel  # Panel
 
 # Import modules
 from src.plugin import PluginManager  # Plugin manager module
-from src.util.config import Config  # Configuration utilities module
+from src.util.config import DictConfig  # Configuration utilities module
 
 # Define constants
 PYTHON_VERSION = (version_info.major, version_info.minor, version_info.micro)
@@ -64,7 +64,7 @@ class CLI_Toolkit_App:
         self.logger.debug(f"Logger initialized.")
 
         # Initialize the configuration
-        self.config = Config(
+        self.config = DictConfig(
             config_path=Path(  # Path to the configuration file
                 "CLI-Toolkit/config.json"
             ),
@@ -83,7 +83,7 @@ class CLI_Toolkit_App:
         self.logger.debug(f"Plugin manager initialized.")
 
         # Initialize aliases
-        self.aliases = Config(
+        self.aliases = DictConfig(
             config_path=Path(
                 "CLI-Toolkit/aliases.json"
             ),  # Path to the aliases configuration file
@@ -576,7 +576,9 @@ class CLI_Toolkit_App:
                 Panel("\n".join(loaded_plugin), title="Loaded Plugins", highlight=True)
             )
             self.console.print(
-                Panel("\n".join(unloaded_plugin), title="Unloaded Plugins", highlight=True)
+                Panel(
+                    "\n".join(unloaded_plugin), title="Unloaded Plugins", highlight=True
+                )
             )
 
     def cmd_version(self, _):
