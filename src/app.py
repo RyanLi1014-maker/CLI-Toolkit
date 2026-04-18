@@ -374,17 +374,17 @@ class CLI_Toolkit_App:
 
         Usage:
             plg: List all plugins.
-            plg <command> <plugin_name>: Manage plugins.
+            plg <command> [args]: Manage plugins.
 
         Options:
             command: The command to execute. Can be one of the following:
-                load: Load a plugin.
-                unload: Unload a plugin.
-                reload: Reload a plugin.
-                load_all: Load all plugins in the plugin directory.
-                unload_all: Unload all plugins that had already been loaded.
-                reload_all: Reload all plugins that had already been loaded.
-            plugin_name: The name of the plugin to load, unload, or reload.
+                load (or 'l'): Load a plugin. Requires one additional argument: the name of the plugin to load.
+                unload (or 'u'): Unload a plugin. Requires one additional argument: the name of the plugin to unload.
+                reload (or 'r'): Reload a plugin. Requires one additional argument: the name of the plugin to reload.
+                load_all (or 'la'): Load all plugins in the plugin directory.
+                unload_all (or 'ua'): Unload all plugins that had already been loaded.
+                reload_all (or 'ra'): Reload all plugins that had already been loaded.
+            args: The arguments for the command, as described above.
         """
         if args:  # If arguments are provided, handle them
             self.logger.debug("Handling 'plg' command with arguments.")
@@ -397,8 +397,8 @@ class CLI_Toolkit_App:
 
             # Match the sub-command
             match sub_command:
-                case "load":
-                    if sub_args:  # If an argument is provided, load the plugin
+                case "load" | "l":
+                    if len(sub_args) == 1:  # If the arguments are valid, load the plugin
                         try:
                             self.plugin_manager.load_plugin(sub_args[0])
                         except Warning as w:  # Catch any warnings
@@ -421,15 +421,24 @@ class CLI_Toolkit_App:
                             self.console.print(
                                 f"Loaded plugin: {sub_args[0]}", style="green"
                             )
-                    else:  # Otherwise, show a message for blank command
-                        self.logger.info(
-                            "No plugin name provided for 'plg load' command."
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin load usage.")
+                        self.console.print(
+                            "Invalid plugin load usage. For more information, type 'help plg'.",
+                            style="red",
                         )
-                        self.show_unknown_cmd()
-                case "unload":
-                    if sub_args:  # If an argument is provided, unload the plugin
+                case "unload" | "u":
+                    if len(sub_args) == 1:  # If the arguments are valid, unload the plugin
                         try:
                             self.plugin_manager.unload_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to unload plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to unload plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
                                 f"Failed to unload plugin '{sub_args[0]}': {e}"
@@ -442,15 +451,26 @@ class CLI_Toolkit_App:
                             self.console.print(
                                 f"Unloaded plugin: {sub_args[0]}", style="green"
                             )
-                    else:  # Otherwise, show a message for blank command
+                    else:  # If the arguments are not valid, show an error message
                         self.logger.info(
-                            "No plugin name provided for 'plg unload' command."
+                            "Invalid plugin unload usage."
                         )
-                        self.show_unknown_cmd()
-                case "reload":
-                    if sub_args:  # If an argument is provided, reload the plugin
+                        self.console.print(
+                            "Invalid plugin unload usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
+                case "reload" | "r":
+                    if len(sub_args) == 1:  # If the arguments are valid, reload the plugin
                         try:
                             self.plugin_manager.reload_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to reload plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to reload plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
                                 f"Failed to reload plugin '{sub_args[0]}': {e}"
@@ -463,24 +483,48 @@ class CLI_Toolkit_App:
                             self.console.print(
                                 f"Reloaded plugin: {sub_args[0]}", style="green"
                             )
-                    else:  # Otherwise, show a message for blank command
+                    else:  # If the arguments are not valid, show an error message
                         self.logger.info(
-                            "No plugin name provided for 'plg reload' command."
+                            "Invalid plugin reload usage."
                         )
-                        self.show_unknown_cmd()
-                case "load_all":
-                    loaded_count = self.plugin_manager.load_all_plugins()
-                    self.console.print(f"Loaded {loaded_count} plugins.", style="green")
-                case "unload_all":
-                    unloaded_count = self.plugin_manager.unload_all_plugins()
-                    self.console.print(
-                        f"Unloaded {unloaded_count} plugins.", style="green"
-                    )
-                case "reload_all":
-                    reloaded_count = self.plugin_manager.reload_all_plugins()
-                    self.console.print(
-                        f"Reloaded {reloaded_count} plugins.", style="green"
-                    )
+                        self.console.print(
+                            "Invalid plugin reload usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
+                case "load_all" | "la":
+                    if not sub_args:  # If there are no additional arguments, load all plugins
+                        loaded_count = self.plugin_manager.load_all_plugins()
+                        self.console.print(f"Loaded {loaded_count} plugins.", style="green")
+                    else:
+                        self.logger.info("Invalid plugin load_all usage.")
+                        self.console.print(
+                            "Invalid plugin load_all usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
+                case "unload_all" | "ua":
+                    if not sub_args:  # If there are no additional arguments, unload all plugins
+                        unloaded_count = self.plugin_manager.unload_all_plugins()
+                        self.console.print(
+                            f"Unloaded {unloaded_count} plugins.", style="green"
+                        )
+                    else:
+                        self.logger.info("Invalid plugin unload_all usage.")
+                        self.console.print(
+                            "Invalid plugin unload_all usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
+                case "reload_all" | "ra":
+                    if not sub_args:  # If there are no additional arguments, reload all plugins
+                        reloaded_count = self.plugin_manager.reload_all_plugins()
+                        self.console.print(
+                            f"Reloaded {reloaded_count} plugins.", style="green"
+                        )
+                    else:
+                        self.logger.info("Invalid plugin reload_all usage.")
+                        self.console.print(
+                            "Invalid plugin reload_all usage. For more information, type 'help plg'.",
+                            style="red",
+                        )
                 case unknown_command:
                     # If an unknown sub-command is provided, show it as an unknown command
                     self.show_unknown_cmd(unknown_command)
