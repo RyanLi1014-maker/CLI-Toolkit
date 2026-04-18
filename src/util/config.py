@@ -70,14 +70,6 @@ class ListConfig(list):
         with open(self.config_file_path, "w", encoding="utf-8") as f:
             json.dump(self, f, indent=4)
 
-    def __getitem__(self, index):
-        if index < len(self):  # Check in the configuration
-            return super().__getitem__(index)
-        elif index < len(self.default):  # Check in the default configuration
-            return self.default[index]
-        else:  # If the index does not exist in the configuration or the default configuration, raise an error
-            raise IndexError(f"Index '{index}' does not exist in the configuration.")
-
 
 class DictConfig(dict):
     """Configuration class for handling application configuration."""
@@ -148,14 +140,6 @@ class DictConfig(dict):
             self.config_file_path.parent.mkdir(parents=True)
         with open(self.config_file_path, "w", encoding="utf-8") as f:
             json.dump(self, f, indent=4)
-
-    def __getitem__(self, key):
-        if key in self:  # Check in the configuration
-            return super().__getitem__(key)
-        elif key in self.default:  # Check in the default configuration
-            return self.default[key]
-        else:  # If the key does not exist in the configuration or the default configuration, raise an error
-            raise KeyError(f"Key '{key}' does not exist in the configuration.")
 
 
 class SetConfig(set):
