@@ -189,79 +189,96 @@ class CLI_Toolkit_App:
 
         Usage:
             alias: List all command aliases.
-            alias <alias_name> [--delete|-d]: Operate on an existing alias with the specified option.
-            alias <alias_name> <command>: Create an alias for a command.
+            alias <sub_command> [args]: Operate on an existing alias with the specified option.
 
         Options:
-            alias_name: The name of the alias to create.
-            command: The command that the alias will execute.
-            --delete, -d: If this flag is present, the specified alias will be deleted instead of created.
+            sub_command: The sub-command to execute. Can be one of the following:
+                create (or 'c'): Create a new alias. Requires two additional arguments: the alias name and the command it maps to.
+                delete (or 'd'): Delete an existing alias. Requires one additional argument: the alias name to delete.
+            args: The arguments for the sub-command, as described above.
         """
-        # Handle the case where the user provides exactly two arguments
-        if len(args) == 2:
+        # Handle the case where the user provides arguments, which means they want to create or delete an alias
+        if args:
+            self.logger.debug(f"Handling 'alias' command with arguments: {args}")
 
-            # If the delete flag is present, delete the alias
-            if ("--delete" in args) or ("-d" in args):
-                alias_name = args[0]
-                if alias_name in self.aliases:
-                    del self.aliases[alias_name]
-                    self.aliases.save()
-                    self.logger.info(f"Alias '{alias_name}' deleted.")
-                    self.console.print(f"Alias '{alias_name}' deleted.", style="green")
-                else:
-                    self.logger.warning(f"Alias '{alias_name}' not found.")
-                    self.console.print(f"Alias '{alias_name}' not found.", style="red")
+            # Get the sub-command and its arguments
+            sub_command = args[0]
+            sub_args = args[1:]
+            self.logger.debug(f"Sub-command: '{sub_command}'")
+            self.logger.debug(f"Sub-command arguments: '{sub_args}'")
 
-            # Otherwise, create the alias
-            else:
-                self.logger.debug(f"Creating alias '{args[0]}' for command '{args[1]}'")
-                alias_name, command = args
-                if command in self.aliases.keys():
-                    self.logger.warning(
-                        f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias."
-                    )
-                    self.console.print(
-                        f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias.",
-                        style="red",
-                    )
-                    return
-                self.aliases[alias_name] = command  # Add the alias to the configuration
-                self.aliases.save()  # Save the updated configuration to the file
-                self.logger.info(
-                    f"Alias '{alias_name}' created for command '{command}'"
-                )
-                self.console.print(
-                    f"Alias '{alias_name}' created for command '{command}'.",
-                    style="green",
-                )
-
+            # Match the sub-command
+            match sub_command:
+                case "create" | "c":
+                    if len(sub_args) == 2:  # Check if the required args are provided
+                        # Extract the alias name and command from the sub-arguments
+                        alias_name, command = sub_args
+                        # Check if the command is already an alias
+                        if command in self.aliases.keys():
+                            self.logger.warning(
+                                f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias."
+                            )
+                            self.console.print(
+                                f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias.",
+                                style="red",
+                            )
+                            return
+                        # Add the alias to the configuration
+                        self.aliases[alias_name] = command
+                        self.aliases.save()  # Save the updated configuration to the file
+                        self.logger.info(
+                            f"Alias '{alias_name}' created for command '{command}'"
+                        )
+                        self.console.print(
+                            f"Alias '{alias_name}' created for command '{command}'.",
+                            style="green",
+                        )
+                    else:  # If the required arguments are not provided, show an error message
+                        self.logger.info(
+                            f"Invalid alias creation usage."
+                        )
+                        self.console.print(
+                            "Invalid alias creation usage. For more information, type 'help alias'."
+                        )
+                case "delete" | "d":
+                    if len(sub_args) == 1:  # Check if the required arg is provided
+                        alias_name = sub_args[0]
+                        if alias_name in self.aliases:
+                            del self.aliases[alias_name]
+                            self.aliases.save()  # Save the updated configuration to the file
+                            self.logger.info(f"Alias '{alias_name}' deleted.")
+                            self.console.print(
+                                f"Alias '{alias_name}' deleted.", style="green"
+                            )
+                        else:
+                            self.logger.warning(f"Alias '{alias_name}' not found.")
+                            self.console.print(
+                                f"Alias '{alias_name}' not found.", style="red"
+                            )
+                    else:  # If the required argument is not provided, show an error message
+                        self.logger.info(
+                            f"Invalid alias deletion usage."
+                        )
+                        self.console.print(
+                            "Invalid alias deletion usage. For more information, type 'help alias'."
+                        )
         # Handle the case where the user provides no arguments, which means they want to list all aliases
-        elif len(args) == 0:
-
+        else:
             self.logger.debug("Listing all command aliases.")
 
-            # Check if there are any aliases defined
-            if not self.aliases:
+            if self.aliases:  # Check if there are any aliases defined
+                alias_list = [  # Iterate over all aliases
+                    f"[blue]{alias}[/blue]: {cmd}"
+                    for alias, cmd in self.aliases.items()
+                ]
+                self.console.print(  # Print the list of aliases in a panel
+                    Panel(
+                        "\n".join(alias_list), title="Command Aliases", highlight=True
+                    )
+                )
+            else:  # If there are no aliases defined, show a message
                 self.console.print("No command aliases defined.")
                 return
-
-            # Iterate over all aliases and their corresponding commands
-            alias_list = [
-                f"[blue]{alias}[/blue]: {cmd}" for alias, cmd in self.aliases.items()
-            ]
-
-            # Print the list of aliases in a panel
-            self.console.print(
-                Panel("\n".join(alias_list), title="Command Aliases", highlight=True)
-            )
-
-        else:  # If the user provides invalid arguments, show an error message
-            self.logger.warning(
-                f"Invalid alias arguments: {args}. Expected 0 or 2 arguments."
-            )
-            self.console.print(
-                "Invalid alias usage. For more information, type 'help alias'."
-            )
 
     def cmd_clear(self, _):
         """Clear the console screen.
