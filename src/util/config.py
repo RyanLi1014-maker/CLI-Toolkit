@@ -34,6 +34,7 @@ class ListConfig(list):
         """Load the configuration from the file."""
         if self.config_file_path.exists():  # Check if the configuration file exists
             with open(self.config_file_path, "r", encoding="utf-8") as f:
+                # Try to load the content of the file as json, if it fails, log a warning and return the default configuration
                 try:
                     content = json.load(f)
                 except json.JSONDecodeError:
@@ -41,7 +42,16 @@ class ListConfig(list):
                         f"File '{self.config_file_path.name}' is not a valid json file. Returning default configuration."
                     )
                     content = self.default
-                self.extend(content)  # Load the configuration from the file
+                # Load the configuration from the file if it's a list, otherwise load an empty list
+                if isinstance(content, list):
+                    self.extend(content)
+                else:
+                    self.logger.warning(  # Log a warning if the content of the file is not a list and return the default configuration
+                        f"File '{self.config_file_path.name}' does not contain a list. Returning default configuration."
+                    )
+                    self.clear()  # Clear the current configuration before loading the default configuration
+                    self.extend(self.default)
+                    self.save()  # Save the default configuration to the file
         else:  # If the configuration file does not exist, return the default configuration
             self.logger.warning(
                 f"File '{self.config_file_path.name}' does not exist. Returning default configuration and saving it to the file."
@@ -103,6 +113,7 @@ class DictConfig(dict):
         """Load the configuration from the file."""
         if self.config_file_path.exists():  # Check if the configuration file exists
             with open(self.config_file_path, "r", encoding="utf-8") as f:
+                # Try to load the content of the file as json, if it fails, log a warning and return the default configuration
                 try:
                     content = json.load(f)
                 except json.JSONDecodeError:
@@ -110,7 +121,16 @@ class DictConfig(dict):
                         f"File '{self.config_file_path.name}' is not a valid json file. Returning default configuration."
                     )
                     content = self.default
-                self.update(content)  # Load the configuration from the file
+                # Load the configuration from the file if it's a dictionary, otherwise load an empty dictionary
+                if isinstance(content, dict):
+                    self.update(content)
+                else:
+                    self.logger.warning(  # Log a warning if the content of the file is not a dictionary and return the default configuration
+                        f"File '{self.config_file_path.name}' does not contain a dictionary. Returning default configuration."
+                    )
+                    self.clear()  # Clear the current configuration before loading the default configuration
+                    self.update(self.default)
+                    self.save()  # Save the default configuration to the file
         else:  # If the configuration file does not exist, return the default configuration
             self.logger.warning(
                 f"File '{self.config_file_path.name}' does not exist. Returning default configuration and saving it to the file."
@@ -167,6 +187,7 @@ class SetConfig(set):
         """Load the configuration from the file."""
         if self.config_file_path.exists():  # Check if the configuration file exists
             with open(self.config_file_path, "r", encoding="utf-8") as f:
+                # Try to load the content of the file as json, if it fails, log a warning and return the default configuration
                 try:
                     content = json.load(f)
                 except json.JSONDecodeError:
@@ -174,13 +195,22 @@ class SetConfig(set):
                         f"File '{self.config_file_path.name}' is not a valid json file. Returning default configuration."
                     )
                     content = list(self.default)
-                self.update(content)  # Load the configuration from the file
+                # Load the configuration from the file if it's a list, otherwise load an empty set
+                if isinstance(content, list):
+                    self.update(content)
+                else:
+                    self.logger.warning(
+                        f"File '{self.config_file_path.name}' does not contain a list. Returning default configuration."
+                    )
+                    self.clear()  # Clear the current configuration before loading the default configuration
+                    self.update(self.default)
+                    self.save()  # Save the default configuration to the file
         else:  # If the configuration file does not exist, return the default configuration
             self.logger.warning(
                 f"File '{self.config_file_path.name}' does not exist. Returning default configuration and saving it to the file."
             )
             self.update(  # Update the configuration with the default values
-                list(self.default)
+                list(self.default) if isinstance(self.default, set) else []
             )
             self.save()  # Save the default configuration to the file
 
