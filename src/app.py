@@ -191,10 +191,12 @@ class CLI_Toolkit_App:
             alias: List all command aliases.
             alias <sub_command> [args]: Operate on an existing alias with the specified option.
 
-        Options:
+        Arguments:
             sub_command: The sub-command to execute. Can be one of the following:
-                create (or 'c'): Create a new alias. Requires two additional arguments: the alias name and the command it maps to.
-                delete (or 'd'): Delete an existing alias. Requires one additional argument: the alias name to delete.
+                'create' | 'c': Create a new alias. Requires two additional arguments: the alias name and the command it maps to.
+                'delete' | 'd': Delete an existing alias. Requires one additional argument: the alias name to delete.
+
+        Options:
             args: The arguments for the sub-command, as described above.
         """
         # Handle the case where the user provides arguments, which means they want to create or delete an alias
@@ -234,9 +236,7 @@ class CLI_Toolkit_App:
                             style="green",
                         )
                     else:  # If the required arguments are not provided, show an error message
-                        self.logger.info(
-                            f"Invalid alias creation usage."
-                        )
+                        self.logger.info(f"Invalid alias creation usage.")
                         self.console.print(
                             "Invalid alias creation usage. For more information, type 'help alias'."
                         )
@@ -256,9 +256,7 @@ class CLI_Toolkit_App:
                                 f"Alias '{alias_name}' not found.", style="red"
                             )
                     else:  # If the required argument is not provided, show an error message
-                        self.logger.info(
-                            f"Invalid alias deletion usage."
-                        )
+                        self.logger.info(f"Invalid alias deletion usage.")
                         self.console.print(
                             "Invalid alias deletion usage. For more information, type 'help alias'."
                         )
@@ -307,7 +305,7 @@ class CLI_Toolkit_App:
             help: Show command list.
             help <command>: Show detailed descriptions for <command>.
 
-        Options:
+        Arguments:
             command: The specific command to show detailed help for.
         """
         if args:
@@ -376,14 +374,16 @@ class CLI_Toolkit_App:
             plg: List all plugins.
             plg <command> [args]: Manage plugins.
 
-        Options:
+        Arguments:
             command: The command to execute. Can be one of the following:
-                load (or 'l'): Load a plugin. Requires one additional argument: the name of the plugin to load.
-                unload (or 'u'): Unload a plugin. Requires one additional argument: the name of the plugin to unload.
-                reload (or 'r'): Reload a plugin. Requires one additional argument: the name of the plugin to reload.
-                load_all (or 'la'): Load all plugins in the plugin directory.
-                unload_all (or 'ua'): Unload all plugins that had already been loaded.
-                reload_all (or 'ra'): Reload all plugins that had already been loaded.
+                'load' | 'l': Load a plugin. Requires one additional argument: the name of the plugin to load.
+                'unload' | 'u': Unload a plugin. Requires one additional argument: the name of the plugin to unload.
+                'reload' | 'r': Reload a plugin. Requires one additional argument: the name of the plugin to reload.
+                'load_all' | 'la': Load all plugins in the plugin directory.
+                'unload_all' | 'ua': Unload all plugins that had already been loaded.
+                'reload_all' | 'ra': Reload all plugins that had already been loaded.
+
+        Options:
             args: The arguments for the command, as described above.
         """
         if args:  # If arguments are provided, handle them
@@ -398,7 +398,9 @@ class CLI_Toolkit_App:
             # Match the sub-command
             match sub_command:
                 case "load" | "l":
-                    if len(sub_args) == 1:  # If the arguments are valid, load the plugin
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, load the plugin
                         try:
                             self.plugin_manager.load_plugin(sub_args[0])
                         except Warning as w:  # Catch any warnings
@@ -428,7 +430,9 @@ class CLI_Toolkit_App:
                             style="red",
                         )
                 case "unload" | "u":
-                    if len(sub_args) == 1:  # If the arguments are valid, unload the plugin
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, unload the plugin
                         try:
                             self.plugin_manager.unload_plugin(sub_args[0])
                         except Warning as w:  # Catch any warnings
@@ -452,15 +456,15 @@ class CLI_Toolkit_App:
                                 f"Unloaded plugin: {sub_args[0]}", style="green"
                             )
                     else:  # If the arguments are not valid, show an error message
-                        self.logger.info(
-                            "Invalid plugin unload usage."
-                        )
+                        self.logger.info("Invalid plugin unload usage.")
                         self.console.print(
                             "Invalid plugin unload usage. For more information, type 'help plg'.",
                             style="red",
                         )
                 case "reload" | "r":
-                    if len(sub_args) == 1:  # If the arguments are valid, reload the plugin
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, reload the plugin
                         try:
                             self.plugin_manager.reload_plugin(sub_args[0])
                         except Warning as w:  # Catch any warnings
@@ -484,17 +488,19 @@ class CLI_Toolkit_App:
                                 f"Reloaded plugin: {sub_args[0]}", style="green"
                             )
                     else:  # If the arguments are not valid, show an error message
-                        self.logger.info(
-                            "Invalid plugin reload usage."
-                        )
+                        self.logger.info("Invalid plugin reload usage.")
                         self.console.print(
                             "Invalid plugin reload usage. For more information, type 'help plg'.",
                             style="red",
                         )
                 case "load_all" | "la":
-                    if not sub_args:  # If there are no additional arguments, load all plugins
+                    if (
+                        not sub_args
+                    ):  # If there are no additional arguments, load all plugins
                         loaded_count = self.plugin_manager.load_all_plugins()
-                        self.console.print(f"Loaded {loaded_count} plugins.", style="green")
+                        self.console.print(
+                            f"Loaded {loaded_count} plugins.", style="green"
+                        )
                     else:
                         self.logger.info("Invalid plugin load_all usage.")
                         self.console.print(
@@ -502,7 +508,9 @@ class CLI_Toolkit_App:
                             style="red",
                         )
                 case "unload_all" | "ua":
-                    if not sub_args:  # If there are no additional arguments, unload all plugins
+                    if (
+                        not sub_args
+                    ):  # If there are no additional arguments, unload all plugins
                         unloaded_count = self.plugin_manager.unload_all_plugins()
                         self.console.print(
                             f"Unloaded {unloaded_count} plugins.", style="green"
@@ -514,7 +522,9 @@ class CLI_Toolkit_App:
                             style="red",
                         )
                 case "reload_all" | "ra":
-                    if not sub_args:  # If there are no additional arguments, reload all plugins
+                    if (
+                        not sub_args
+                    ):  # If there are no additional arguments, reload all plugins
                         reloaded_count = self.plugin_manager.reload_all_plugins()
                         self.console.print(
                             f"Reloaded {reloaded_count} plugins.", style="green"
