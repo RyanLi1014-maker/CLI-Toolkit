@@ -545,27 +545,38 @@ class CLI_Toolkit_App:
                 self.console.print("No plugins loaded.")
                 return
 
-            # Iterate over all plugins
-            plugin_list = []  # List to hold plugin names and descriptions
+            # Iterate over all loaded plugins
+            loaded_plugin = []  # List to hold loaded plugin names and descriptions
             for plugin_name, plugin_instance in self.plugin_manager.plugins.items():
                 if plugin_doc := plugin_instance.__doc__:
                     self.logger.debug(
                         f"Plugin '{plugin_name}' has docstring. Adding to list."
                     )
-                    plugin_list.append(
+                    loaded_plugin.append(
                         f"[blue]{plugin_name}[/blue]: {plugin_doc.splitlines()[0]}"
                     )
                 else:  # If the plugin has no docstring, show a default message
                     self.logger.debug(
                         f"Plugin '{plugin_name}' has no docstring. Adding default message to list."
                     )
-                    plugin_list.append(
+                    loaded_plugin.append(
                         f"[blue]{plugin_name}[/blue]: No description available."
                     )
 
+            unloaded_plugin = []  # List to hold unloaded plugin names and descriptions
+            for file in self.plugin_manager.plugin_dir.iterdir():
+                if file.is_file() and file.suffix == ".py":  # Skip non-Python files
+                    # Get the plugin name from the file name
+                    plugin_name = file.stem
+                    if plugin_name not in self.plugin_manager.plugins:
+                        unloaded_plugin.append(f"[blue]{plugin_name}[/blue]: Unloaded")
+
             # Print plugin list message
             self.console.print(
-                Panel("\n".join(plugin_list), title="Loaded Plugins", highlight=True)
+                Panel("\n".join(loaded_plugin), title="Loaded Plugins", highlight=True)
+            )
+            self.console.print(
+                Panel("\n".join(unloaded_plugin), title="Unloaded Plugins", highlight=True)
             )
 
     def cmd_version(self, _):
