@@ -224,7 +224,6 @@ class Plugin(BasePlugin):
                 "key2": {"key3": "value3"},
             },
         )
-        self.config.load()  # Load the configuration
         self.master.console.print("Config loaded!")
 
     def cmd_show_config(self, _):

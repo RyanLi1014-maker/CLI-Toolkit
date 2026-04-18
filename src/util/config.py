@@ -12,20 +12,28 @@ class Config(dict):
         self,
         config_path: Path,
         default_config: dict = {},
+        auto_load: bool = True,
     ):
         """Initialize the configuration.
         Args:
             config_path (Path): The path to the configuration file.
             default_config (dict): The default configuration values.
+            auto_load (bool): Whether to automatically load the configuration from the file upon initialization. If False, the default configuration will be used while initializing. Defaults to True.
         """
-        super().__init__()  # Initialize the dictionary
+
+        # Initialize the dictionary and set up logging
+        super().__init__()
         self.logger = logging.getLogger("Config")
         self.config_file_path = Path("config") / config_path
+
         # Check if the config directory exists
         if not self.config_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
             self.config_file_path.parent.mkdir(parents=True)
         self.default = default_config
+
+        # Load the configuration from the file if auto_load is True, otherwise update the configuration with the default values
+        self.load() if auto_load else self.update(default_config)
 
     def load(self):
         """Load the configuration from the file."""

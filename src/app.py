@@ -74,7 +74,6 @@ class CLI_Toolkit_App:
                 },
             },
         )
-        self.config.load()  # Load the configuration from the file
         self.logger.debug(f"Configuration loaded: {self.config}")
 
         # Initialize the plugin manager
@@ -93,7 +92,6 @@ class CLI_Toolkit_App:
                 "quit": "exit",  # Alias "quit" for "exit" command
             },
         )
-        self.aliases.load()  # Load the aliases from the file
 
     def _dispatch(self, input_cmd: str):
         """Dispatch the command to the appropriate handler.
