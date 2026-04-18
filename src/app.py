@@ -691,6 +691,10 @@ class CLI_Toolkit_App:
             f"[blue]{plugin_name}[/blue] v{".".join([str(part) for part in plugin.VERSION])}"
             for plugin_name, plugin in self.plugin_manager.plugins.items()
         ]
-        self.console.print(
-            Panel("\n".join(plugin_versions_list), title="Plugin Versions")
+        (
+            self.console.print(
+                Panel("\n".join(plugin_versions_list), title="Plugin Versions")
+            )
+            if plugin_versions_list
+            else self.console.print("No plugins loaded.")
         )
