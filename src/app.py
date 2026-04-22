@@ -1,22 +1,20 @@
-"""CLI-Tookit Application"""
+"""CLI-Toolkit Application"""
 
 # Import libraries
-from sys import version_info  # Python version
-from pathlib import Path  # File path handling
-import shlex  # Shell-like syntax parsing
 import logging  # Logging module
+from pathlib import Path  # Path
 from rich.console import Console  # Console
 from rich.panel import Panel  # Panel
+import shlex  # Shell-like syntax parsing
+from sys import version_info  # Python version
 
 # Import modules
-from src.plugin import PluginManager  # Plugin manager module
-from src.util.config import Config  # Configuration utilities module
+from plugin_manager import PluginManager  # Plugin manager module
+from util.config import DictConfig  # Configuration module
 
 # Define constants
-PYTHON_VERSION = (  # Python version
-    f"{version_info.major}.{version_info.minor}.{version_info.micro}"
-)
-CLIT_VERSION = "0.1.0"  # CLI-Toolkit version
+PYTHON_VERSION = (version_info.major, version_info.minor, version_info.micro)
+CLIT_VERSION = (0, 2, 0)  # CLI-Toolkit version
 CLIT_LOGO = r"""
          ________      ___           ___                                                    
         |\   ____\    |\  \         |\  \                                                   
@@ -36,6 +34,9 @@ CLIT_LOGO = r"""
 """
 del version_info  # Delete the Python version variable after use
 
+# Define variables
+logger = logging.getLogger("CLI-Toolkit")
+
 
 class CLI_Toolkit_App:
     """Command-line interface class."""
@@ -43,12 +44,12 @@ class CLI_Toolkit_App:
     VERSION = CLIT_VERSION  # Application version
 
     def __init__(self):
-        """Initialize the CLI-Tookit application."""
+        """Initialize the CLI-Toolkit application."""
         # Initialize the console
         self.console = Console()
-        self.console.print(
+        self.console.print(  # Print the logo when the application starts
             CLIT_LOGO, highlight=False
-        )  # Print the logo when the application starts
+        )
 
         # Initialize the logger
         logging_directory = Path("log")
@@ -56,32 +57,49 @@ class CLI_Toolkit_App:
             logging_directory.mkdir()
         logging.basicConfig(  # Initialize the logger
             level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] (%(filename)s:%(lineno)d) - %(message)s",
+            format="%(asctime)s [%(levelname)s][%(name)s] (%(filename)s:%(lineno)d) - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
             filename=logging_directory / "CLI-Toolkit.log",
             filemode="w",
             encoding="utf-8",
         )
-        self.logger = logging.getLogger("CLI-Toolkit")  # Set the logger
+        self.logger = logger.getChild("App")
         self.logger.debug(f"Logger initialized.")
 
         # Initialize the configuration
-        self.config = Config(
-            config_path=Path("CLI-Toolkit.json"),  # Path to the configuration file
+        self.config = DictConfig(
+            config_path=Path(  # Path to the configuration file
+                "CLI-Toolkit/config.json"
+            ),
             default_config={  # Default configuration values
-                "plg": {
+                "plugin": {
+                    "load_on_enable": True,  # Whether to automatically load a plugin when it is enabled
                     "load_on_start": True,  # Whether to automatically load all plugins in the plugin directory when the application starts
-                }
+                },
             },
         )
-        self.config.load()  # Load the configuration from the file
         self.logger.debug(f"Configuration loaded: {self.config}")
 
         # Initialize the plugin manager
-        self.plugin_manager = PluginManager(self)  # Initialize the plugin manager
-        if self.config["plg"]["load_on_start"]:  # Load all plugins
+        self.plugin_manager = PluginManager(  # Initialize the plugin manager
+            self, Path("plugin")
+        )
+        if self.config["plugin"]["load_on_start"]:  # Load all plugins
             self.plugin_manager.load_all_plugins()
         self.logger.debug(f"Plugin manager initialized.")
+
+        # Initialize aliases
+        self.aliases = DictConfig(
+            config_path=Path(
+                "CLI-Toolkit/aliases.json"
+            ),  # Path to the aliases configuration file
+            default_config={  # Default aliases from the main configuration
+                "h": "help",  # Alias "h" for "help" command
+                "cls": "clear",  # Alias "cls" for "clear" command
+                "plg": "plugin",  # Alias "plugin" for "plugin" command
+                "quit": "exit",  # Alias "quit" for "exit" command
+            },
+        )
 
     def _dispatch(self, input_cmd: str):
         """Dispatch the command to the appropriate handler.
@@ -89,6 +107,7 @@ class CLI_Toolkit_App:
             input_cmd (str): The raw input command entered by the user.
         """
         self.logger.info(f"Dispatching command: '{input_cmd}'")
+
         # Parse the command using shell-like syntax
         try:
             parsed_input = shlex.split(
@@ -99,14 +118,15 @@ class CLI_Toolkit_App:
                 f"[red]Error parsing command: {e}.[/red] Please check your command syntax and try again."
             )
             return
+
         # Get the command name
         cmd = parsed_input[0] if parsed_input else ""
+
         # Get the command arguments
         args = parsed_input[1:] if len(parsed_input) > 1 else []
-        # Get the method corresponding to the command
-        method = getattr(self, f"cmd_{cmd}", None)
+
         # If the method exists and is callable, call it with the arguments
-        if callable(method):
+        if callable(method := getattr(self, f"cmd_{cmd}", None)):
             self.logger.info(f"Calling method: {method}")
             try:
                 method(args)
@@ -119,32 +139,34 @@ class CLI_Toolkit_App:
                     f"An unexpected error occurred: {e}",
                     style="red",
                 )
-        else:  # If the command is not recognized, call the default handler
-            self.show_unknown_cmd(cmd)
 
-    def show_unknown_cmd(self, input_cmd: str = ""):
-        """Show an error message for unknown/blank commands.
-        Args:
-            input_cmd (str): The input command that was not recognized.
-        """
-        if input_cmd:
-            self.console.print(
-                f"Unknown command: '{input_cmd}'. Please enter an existing command.",
-                style="red",
+        # If the command is an alias, resolve it and call the corresponding method
+        elif cmd in self.aliases:
+            alias_cmd = self.aliases[cmd]
+            if alias_cmd in self.aliases.keys():
+                self.logger.warning(
+                    f"Alias '{cmd}' resolves to '{alias_cmd}', which is also an alias. This may cause unexpected behavior. Cancelling command dispatch..."
+                )
+                return
+            self.logger.info(f"Resolving alias '{cmd}' to command '{alias_cmd}'")
+            self._dispatch(  # Recursively dispatch the resolved command
+                f"{alias_cmd} " + " ".join(args)
             )
-        else:  # If the input command is blank, ignore it
-            self.console.print(
-                "No command entered. Please enter an existing command.",
-                style="red",
-            )
-            return
+
+        # If the command is not recognized, call the default handler
+        else:
+            if cmd:  # If the command is not blank, show it as an unknown command
+                self.console.print(
+                    f"Unknown command: '{cmd}'. Please enter an existing command.",
+                    style="red",
+                )
 
     def mainloop(self):
         """Start the command loop."""
         self.console.rule()
         self.console.print(  # Print the welcome message
             f"Welcome to [bold yellow]CLI-Toolkit[/bold yellow]!",
-            "Type `help` for a list of available commands.",
+            "Type 'help' for a list of available commands.",
         )
         # Infinite loop to continuously prompt for user input and dispatch commands
         while True:
@@ -156,6 +178,115 @@ class CLI_Toolkit_App:
                 self.logger.warning("Received interrupt signal.")
                 self.console.print("Goodbye!")
                 exit(0)  # Exit the application with code 0 on Ctrl+C
+
+    def cmd_alias(self, args: list):
+        """Create a command alias.
+
+        Usage:
+            alias: List all command aliases.
+            alias <sub_command> [args]: Operate on an existing alias with the specified option.
+
+        Arguments:
+            sub_command: The sub-command to execute. Can be one of the following:
+                'create' | 'c': Create a new alias. Requires two additional arguments: the alias name and the command it maps to.
+                'delete' | 'd': Delete an existing alias. Requires one additional argument: the alias name to delete.
+
+        Options:
+            args: The arguments for the sub-command, as described above.
+        """
+        # Handle the case where the user provides arguments, which means they want to create or delete an alias
+        if args:
+            self.logger.debug(f"Handling 'alias' command with arguments: {args}")
+
+            # Get the sub-command and its arguments
+            sub_command = args[0]
+            sub_args = args[1:]
+            self.logger.debug(f"Sub-command: '{sub_command}'")
+            self.logger.debug(f"Sub-command arguments: '{sub_args}'")
+
+            # Match the sub-command
+            match sub_command:
+                case "create" | "c":
+                    if len(sub_args) == 2:  # Check if the required args are provided
+                        # Extract the alias name and command from the sub-arguments
+                        alias_name, command = sub_args
+                        # Check if the command is already an alias
+                        if command in self.aliases.keys():
+                            self.logger.warning(
+                                f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias."
+                            )
+                            self.console.print(
+                                f"Cannot create alias '{alias_name}' for command '{command}' because it is already an alias.",
+                                style="red",
+                            )
+                            return
+                        # Add the alias to the configuration
+                        self.aliases[alias_name] = command
+                        self.aliases.save()  # Save the updated configuration to the file
+                        self.logger.info(
+                            f"Alias '{alias_name}' created for command '{command}'"
+                        )
+                        self.console.print(
+                            f"Alias '{alias_name}' created for command '{command}'.",
+                            style="green",
+                        )
+                    else:  # If the required arguments are not provided, show an error message
+                        self.logger.info(f"Invalid alias creation usage.")
+                        self.console.print(
+                            "Invalid alias creation usage. For more information, type 'help alias'."
+                        )
+                case "delete" | "d":
+                    if len(sub_args) == 1:  # Check if the required arg is provided
+                        alias_name = sub_args[0]
+                        if alias_name in self.aliases:
+                            del self.aliases[alias_name]
+                            self.aliases.save()  # Save the updated configuration to the file
+                            self.logger.info(f"Alias '{alias_name}' deleted.")
+                            self.console.print(
+                                f"Alias '{alias_name}' deleted.", style="green"
+                            )
+                        else:
+                            self.logger.warning(f"Alias '{alias_name}' not found.")
+                            self.console.print(
+                                f"Alias '{alias_name}' not found.", style="red"
+                            )
+                    else:  # If the required argument is not provided, show an error message
+                        self.logger.info(f"Invalid alias deletion usage.")
+                        self.console.print(
+                            "Invalid alias deletion usage. For more information, type 'help alias'."
+                        )
+                case unknown_command:
+                    self.console.print(
+                        f"Unknown sub-command: '{unknown_command}'. Please enter an existing sub-command.",
+                        style="red",
+                    )
+
+        # Handle the case where the user provides no arguments, which means they want to list all aliases
+        else:
+            self.logger.debug("Listing all command aliases.")
+
+            if self.aliases:  # Check if there are any aliases defined
+                alias_list = [  # Iterate over all aliases
+                    f"[blue]{alias}[/blue]: {cmd}"
+                    for alias, cmd in self.aliases.items()
+                ]
+                self.console.print(  # Print the list of aliases in a panel
+                    Panel(
+                        "\n".join(alias_list), title="Command Aliases", highlight=True
+                    )
+                )
+            else:  # If there are no aliases defined, show a message
+                self.console.print("No command aliases defined.")
+                return
+
+    def cmd_clear(self, _):
+        """Clear the console screen.
+
+        Usage:
+            clear: Clear the console screen.
+        """
+        self.console.clear()  # Clear the console screen
+        self.logger.info("Console cleared.")
 
     def cmd_exit(self, _):
         """Exit the application.
@@ -175,7 +306,7 @@ class CLI_Toolkit_App:
             help: Show command list.
             help <command>: Show detailed descriptions for <command>.
 
-        Options:
+        Arguments:
             command: The specific command to show detailed help for.
         """
         if args:
@@ -184,26 +315,25 @@ class CLI_Toolkit_App:
             cmd_name = args[0]  # Get the command name from the arguments
             self.logger.debug(f"Showing help for command '{cmd_name}'")
 
-            # Get the method attribute for the command
-            method_attr = getattr(self, f"cmd_{cmd_name}", None)
-            self.logger.debug(f"Method attribute: {method_attr}")
-
             # If the method exists and is callable, show its docstring as detailed help
-            if callable(method_attr):
-                if method_attr.__doc__:
+            if callable(method_attr := getattr(self, f"cmd_{cmd_name}", None)):
+                if method_doc := method_attr.__doc__:
                     self.console.print(
                         Panel(
-                            method_attr.__doc__.strip(),
-                            title=f"Detailed Help for `{cmd_name}` command",
+                            method_doc.strip(),
+                            title=f"Detailed Help for '{cmd_name}' command",
                             highlight=True,
                         )
                     )
                 else:  # If the method has no docstring, provide a default message
                     self.console.print(
-                        f"Command `{cmd_name}` has no description available."
+                        f"Command '{cmd_name}' has no description available."
                     )
             else:  # If the method doesn't exist or isn't callable, show an error message
-                self.show_unknown_cmd(cmd_name)
+                self.console.print(
+                    f"Command '{cmd_name}' not found. Please enter an existing command.",
+                    style="red",
+                )
 
         else:  # If no specific command is provided, show a list of available commands
             self.logger.debug(f"Showing help for all commands.")
@@ -214,16 +344,14 @@ class CLI_Toolkit_App:
                 # Ignore methods that don't start with "cmd_"
                 if not method_name.startswith("cmd_"):
                     continue
-                # Get the method attribute for the command
-                method_attr = getattr(self, method_name, None)
                 # If the method exists and is callable, add it to the command list
-                if callable(method_attr):
-                    if method_attr.__doc__:
+                if callable(method_attr := getattr(self, method_name, None)):
+                    if method_doc := method_attr.__doc__:
                         self.logger.debug(
                             f"Method '{method_name}' has docstring. Adding to list."
                         )
                         command_list.append(
-                            f"[blue]{method_name[4:]}[/blue]: {method_attr.__doc__.splitlines()[0]}"
+                            f"[blue]{method_name[4:]}[/blue]: {method_doc.splitlines()[0]}"
                         )
                     else:  # If the method has no docstring, provide a default message
                         self.logger.debug(
@@ -240,28 +368,33 @@ class CLI_Toolkit_App:
                 )
             )
             self.console.print(
-                "To get detailed help for a specific command, type `help <command>`."
+                "To get detailed help for a specific command, type 'help <command>'."
             )
 
-    def cmd_plg(self, args: list):
+    def cmd_plugin(self, args: list):
         """Plugin management commands.
 
         Usage:
-            plg: List all plugins.
-            plg <command> <plugin_name>: Manage plugins.
+            plugin: List all plugins.
+            plugin <command> [args]: Manage plugins.
+
+        Arguments:
+            command: The command to execute. Can be one of the following:
+                'load' | 'l': Load a plugin. Requires one additional argument: the name of the plugin to load.
+                'unload' | 'u': Unload a plugin. Requires one additional argument: the name of the plugin to unload.
+                'reload' | 'r': Reload a plugin. Requires one additional argument: the name of the plugin to reload.
+                'disable' | 'dis': Disable a plugin. Requires one additional argument: the name of the plugin to disable.
+                'enable' | 'en': Enable a plugin. Requires one additional argument: the name of the plugin to enable.
+                'help' | 'h': Show detailed help for a plugin. Requires one additional argument: the name of the plugin to show help for.
+                'load_all' | 'la': Load all plugins in the plugin directory.
+                'unload_all' | 'ua': Unload all plugins that had already been loaded.
+                'reload_all' | 'ra': Reload all plugins that had already been loaded.
 
         Options:
-            command: The command to execute. Can be one of the following:
-                load: Load a plugin.
-                unload: Unload a plugin.
-                reload: Reload a plugin.
-                load_all: Load all plugins in the plugin directory.
-                unload_all: Unload all plugins that had already been loaded.
-                reload_all: Reload all plugins that had already been loaded.
-            plugin_name: The name of the plugin to load, unload, or reload.
+            args: The arguments for the command, as described above.
         """
         if args:  # If arguments are provided, handle them
-            self.logger.debug("Handling 'plg' command with arguments.")
+            self.logger.debug("Handling 'plugin' command with arguments.")
 
             # Get the sub-command and its arguments
             sub_command = args[0]
@@ -271,8 +404,10 @@ class CLI_Toolkit_App:
 
             # Match the sub-command
             match sub_command:
-                case "load":
-                    if sub_args:  # If an argument is provided, load the plugin
+                case "load" | "l":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, load the plugin
                         try:
                             self.plugin_manager.load_plugin(sub_args[0])
                         except Warning as w:  # Catch any warnings
@@ -295,15 +430,26 @@ class CLI_Toolkit_App:
                             self.console.print(
                                 f"Loaded plugin: {sub_args[0]}", style="green"
                             )
-                    else:  # Otherwise, show a message for blank command
-                        self.logger.info(
-                            "No plugin name provided for `plg load` command."
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin load usage.")
+                        self.console.print(
+                            "Invalid plugin load usage. For more information, type 'help plugin'.",
+                            style="red",
                         )
-                        self.show_unknown_cmd()
-                case "unload":
-                    if sub_args:  # If an argument is provided, unload the plugin
+                case "unload" | "u":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, unload the plugin
                         try:
                             self.plugin_manager.unload_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to unload plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to unload plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
                                 f"Failed to unload plugin '{sub_args[0]}': {e}"
@@ -316,15 +462,26 @@ class CLI_Toolkit_App:
                             self.console.print(
                                 f"Unloaded plugin: {sub_args[0]}", style="green"
                             )
-                    else:  # Otherwise, show a message for blank command
-                        self.logger.info(
-                            "No plugin name provided for `plg unload` command."
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin unload usage.")
+                        self.console.print(
+                            "Invalid plugin unload usage. For more information, type 'help plugin'.",
+                            style="red",
                         )
-                        self.show_unknown_cmd()
-                case "reload":
-                    if sub_args:  # If an argument is provided, reload the plugin
+                case "reload" | "r":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, reload the plugin
                         try:
                             self.plugin_manager.reload_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to reload plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to reload plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
                                 f"Failed to reload plugin '{sub_args[0]}': {e}"
@@ -337,57 +494,217 @@ class CLI_Toolkit_App:
                             self.console.print(
                                 f"Reloaded plugin: {sub_args[0]}", style="green"
                             )
-                    else:  # Otherwise, show a message for blank command
-                        self.logger.info(
-                            "No plugin name provided for `plg reload` command."
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin reload usage.")
+                        self.console.print(
+                            "Invalid plugin reload usage. For more information, type 'help plugin'.",
+                            style="red",
                         )
-                        self.show_unknown_cmd()
-                case "load_all":
-                    loaded_count = self.plugin_manager.load_all_plugins()
-                    self.console.print(f"Loaded {loaded_count} plugins.", style="green")
-                case "unload_all":
-                    unloaded_count = self.plugin_manager.unload_all_plugins()
-                    self.console.print(
-                        f"Unloaded {unloaded_count} plugins.", style="green"
-                    )
-                case "reload_all":
-                    reloaded_count = self.plugin_manager.reload_all_plugins()
-                    self.console.print(
-                        f"Reloaded {reloaded_count} plugins.", style="green"
-                    )
+                case "disable" | "dis":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, disable the plugin
+                        try:
+                            self.plugin_manager.disable_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to disable plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to disable plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
+                        except Exception as e:  # Catch any exceptions
+                            self.logger.error(
+                                f"Failed to disable plugin '{sub_args[0]}': {e}"
+                            )
+                            self.console.print(
+                                f"Failed to disable plugin '{sub_args[0]}': {e}",
+                                style="red",
+                            )
+                        else:
+                            self.console.print(
+                                f"Disabled plugin: {sub_args[0]}", style="green"
+                            )
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin disable usage.")
+                        self.console.print(
+                            "Invalid plugin disable usage. For more information, type 'help plugin'.",
+                            style="red",
+                        )
+                case "enable" | "en":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If the arguments are valid, enable the plugin
+                        try:
+                            self.plugin_manager.enable_plugin(sub_args[0])
+                        except Warning as w:  # Catch any warnings
+                            self.logger.warning(
+                                f"Failed to enable plugin '{sub_args[0]}': {w}"
+                            )
+                            self.console.print(
+                                f"Failed to enable plugin '{sub_args[0]}': {w}",
+                                style="yellow",
+                            )
+                        except Exception as e:  # Catch any exceptions
+                            self.logger.error(
+                                f"Failed to enable plugin '{sub_args[0]}': {e}"
+                            )
+                            self.console.print(
+                                f"Failed to enable plugin '{sub_args[0]}': {e}",
+                                style="red",
+                            )
+                        else:
+                            self.console.print(
+                                f"Enabled plugin: {sub_args[0]}", style="green"
+                            )
+                    else:  # If the arguments are not valid, show an error message
+                        self.logger.info("Invalid plugin enable usage.")
+                        self.console.print(
+                            "Invalid plugin enable usage. For more information, type 'help plugin'.",
+                            style="red",
+                        )
+                case "help" | "h":
+                    if (
+                        len(sub_args) == 1
+                    ):  # If a specific sub-command is provided, show detailed help for that sub-command
+                        plugin_name = sub_args[0]
+                        self.logger.debug(f"Showing help for plugin '{plugin_name}'")
+                        if plugin_instance := self.plugin_manager.plugins.get(
+                            plugin_name
+                        ):
+                            if plugin_doc := plugin_instance.__doc__:
+                                self.console.print(
+                                    Panel(
+                                        plugin_doc.strip(),
+                                        title=f"Help for '{plugin_name}' plugin",
+                                        highlight=True,
+                                    )
+                                )
+                            else:  # If the plugin has no docstring, provide a default message
+                                self.console.print(
+                                    f"Plugin '{plugin_name}' has no description available."
+                                )
+                        else:  # If the plugin is not found, show an error message
+                            self.console.print(
+                                f"Plugin '{plugin_name}' not found. Please enter an existing plugin name.",
+                                style="red",
+                            )
+                case "load_all" | "la":
+                    if (
+                        not sub_args
+                    ):  # If there are no additional arguments, load all plugins
+                        loaded_count = self.plugin_manager.load_all_plugins()
+                        self.console.print(
+                            f"Loaded {loaded_count} plugins.", style="green"
+                        )
+                    else:
+                        self.logger.info("Invalid plugin load_all usage.")
+                        self.console.print(
+                            "Invalid plugin load_all usage. For more information, type 'help plugin'.",
+                            style="red",
+                        )
+                case "unload_all" | "ua":
+                    if (
+                        not sub_args
+                    ):  # If there are no additional arguments, unload all plugins
+                        unloaded_count = self.plugin_manager.unload_all_plugins()
+                        self.console.print(
+                            f"Unloaded {unloaded_count} plugins.", style="green"
+                        )
+                    else:
+                        self.logger.info("Invalid plugin unload_all usage.")
+                        self.console.print(
+                            "Invalid plugin unload_all usage. For more information, type 'help plugin'.",
+                            style="red",
+                        )
+                case "reload_all" | "ra":
+                    if (
+                        not sub_args
+                    ):  # If there are no additional arguments, reload all plugins
+                        reloaded_count = self.plugin_manager.reload_all_plugins()
+                        self.console.print(
+                            f"Reloaded {reloaded_count} plugins.", style="green"
+                        )
+                    else:
+                        self.logger.info("Invalid plugin reload_all usage.")
+                        self.console.print(
+                            "Invalid plugin reload_all usage. For more information, type 'help plugin'.",
+                            style="red",
+                        )
                 case unknown_command:
-                    # If an unknown sub-command is provided, show it as an unknown command
-                    self.show_unknown_cmd(unknown_command)
+                    self.console.print(
+                        f"Unknown sub-command: '{unknown_command}'. Please enter an existing sub-command.",
+                        style="red",
+                    )
 
         else:  # If no arguments are provided, list all plugins
             self.logger.debug("Listing all plugins.")
 
-            # Check if there are any plugins loaded
-            if not self.plugin_manager.plugins:
-                self.console.print("No plugins loaded.")
-                return
-
-            # Iterate over all plugins
-            plugin_list = []  # List to hold plugin names and descriptions
+            # Iterate over all loaded plugins
+            loaded_plugin = []  # List to hold loaded plugin names and descriptions
             for plugin_name, plugin_instance in self.plugin_manager.plugins.items():
-                if plugin_instance.__doc__:
+                if plugin_doc := plugin_instance.__doc__:
                     self.logger.debug(
                         f"Plugin '{plugin_name}' has docstring. Adding to list."
                     )
-                    plugin_list.append(
-                        f"[blue]{plugin_name}[/blue]: {plugin_instance.__doc__.splitlines()[0]}"
+                    loaded_plugin.append(
+                        f"[blue]{plugin_name}[/blue]: {plugin_doc.splitlines()[0]}"
                     )
                 else:  # If the plugin has no docstring, show a default message
                     self.logger.debug(
                         f"Plugin '{plugin_name}' has no docstring. Adding default message to list."
                     )
-                    plugin_list.append(
+                    loaded_plugin.append(
                         f"[blue]{plugin_name}[/blue]: No description available."
                     )
 
+            # Check for unloaded plugins in the plugin directory
+            unloaded_plugin = []  # List to hold unloaded plugin names and descriptions
+            for file in self.plugin_manager.plugin_dir.iterdir():
+                if file.is_file() and file.suffix == ".py":  # Skip non-Python files
+                    # Get the plugin name from the file name
+                    plugin_name = file.stem
+                    if plugin_name not in self.plugin_manager.plugins:
+                        unloaded_plugin.append(f"[blue]{plugin_name}[/blue]: Unloaded")
+
+            disabled_plugin = []  # List to hold disabled plugin names and descriptions
+            for plugin_name in self.plugin_manager.disabled_plugins:
+                disabled_plugin.append(f"[blue]{plugin_name}[/blue]: Disabled")
+
             # Print plugin list message
-            self.console.print(
-                Panel("\n".join(plugin_list), title="Loaded Plugins", highlight=True)
+            (  # Print the list of loaded plugins in a panel if there are any, otherwise show a message that no plugins are loaded
+                self.console.print(
+                    Panel(
+                        "\n".join(loaded_plugin), title="Loaded Plugins", highlight=True
+                    )
+                )
+                if loaded_plugin
+                else self.console.print("No plugins loaded.")
+            )
+            (  # Print the list of unloaded plugins in a panel if there are any, otherwise show a message that no unloaded plugins are found
+                self.console.print(
+                    Panel(
+                        "\n".join(unloaded_plugin),
+                        title="Unloaded Plugins",
+                        highlight=True,
+                    )
+                )
+                if unloaded_plugin
+                else self.console.print(
+                    "No unloaded plugins found in the plugin directory."
+                )
+            )
+            (  # Print the list of disabled plugins in a panel if there are any, otherwise show a message that no disabled plugins are found
+                self.console.print(
+                    Panel(
+                        "\n".join(disabled_plugin),
+                        title="Disabled Plugins",
+                        highlight=True,
+                    )
+                )
+                if disabled_plugin
+                else self.console.print("No disabled plugins.")
             )
 
     def cmd_version(self, _):
@@ -399,16 +716,20 @@ class CLI_Toolkit_App:
 
         # Display Python version and CLI-Toolkit version
         app_version = [
-            f"[blue]Python[/blue] v{PYTHON_VERSION}",
-            f"[blue]CLI-Toolkit[/blue] v{CLIT_VERSION}",
+            f"[blue]Python[/blue] v{".".join([str(part) for part in PYTHON_VERSION])}",
+            f"[blue]CLI-Toolkit[/blue] v{".".join([str(part) for part in self.VERSION])}",
         ]
         self.console.print(Panel("\n".join(app_version), title="Application Versions"))
 
         # Display plugin versions
         plugin_versions_list = [
-            f"[blue]{plugin_name}[/blue] v{plugin.VERSION}"
+            f"[blue]{plugin_name}[/blue] v{".".join([str(part) for part in plugin.VERSION])}"
             for plugin_name, plugin in self.plugin_manager.plugins.items()
         ]
-        self.console.print(
-            Panel("\n".join(plugin_versions_list), title="Plugin Versions")
+        (
+            self.console.print(
+                Panel("\n".join(plugin_versions_list), title="Plugin Versions")
+            )
+            if plugin_versions_list
+            else self.console.print("No plugins loaded.")
         )

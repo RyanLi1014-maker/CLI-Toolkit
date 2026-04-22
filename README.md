@@ -16,13 +16,13 @@ More importantly, it provides an [easy-to-develop plugin system](doc/Plugin%20de
 
 ## Installation
 
-1.  From [python.org](https://www.python.org/) install Python3.14 or above
-2.  Add Python scripts directory to PATH environment variable
-3.  Download an arbitrary release from [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases)
-4.  cd to the project directory and run the following command to install the requirements:
-    ```bash
-    pip install -r requirements.txt
-    ```
+1. Install Python 3.14 or above from [python.org](https://www.python.org/)
+2. Add Python scripts directory to PATH environment variable
+3. Download an arbitrary release from [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases)
+4. cd to the project directory and run the following command to install the requirements:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Running
 
@@ -75,11 +75,11 @@ More importantly, it provides an [easy-to-develop plugin system](doc/Plugin%20de
 2. Copy your plugin file (e.g., `my_plugin.py`) to the `plugin` directory.
 3. Load the plugin in the CLI-Toolkit:
    ```
-   CLI-Toolkit> plg load my_plugin
+   CLI-Toolkit> plugin load my_plugin
    ```
    If there is any space in the plugin name, you need to use quotes to wrap the plugin name.
    ```
-   CLI-Toolkit> plg load "my plugin"
+   CLI-Toolkit> plugin load "my plugin"
    ```
 4. Use help to see the commands provided by the plugin:
    ```
@@ -94,10 +94,10 @@ If you want to develop your own plugin, please refer to [Plugin development](doc
 
 If you want to contribute to this project, please follow these steps:
 
-1. From [git-scm.com](http://git-scm.com) install Git
+1. Install Git from [git-scm.com](http://git-scm.com)
 2. From [python.org](https://www.python.org/) install Python3.14 or above
 3. Fork the repository.
-4. Clone the repository and ckeckout to the develop branch.
+4. Clone the repository and checkout to the develop branch.
 
    ```bash
    git clone https://github.com/RyanLi1014-maker/CLI-Toolkit.git  # Clone the repository
