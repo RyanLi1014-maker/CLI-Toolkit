@@ -30,7 +30,22 @@ class PluginManager:
         """
         self.master = master  # Reference to the main application, can be used by plugins to interact with the application
         self.logger = logger.getChild("PluginManager")
-        self.plugins: dict[str, BasePlugin] = {}  # Dictionary to store loaded plugins
+        # Dictionary to store loaded plugins
+        self.plugin_instances: dict[str, BasePlugin] = {}
+
+        # Get the core commands from the main application
+        self._core_commands: set[str] = {  # Set of core commands
+            method_name
+            for method_name in dir(master)
+            if method_name.startswith("cmd_")
+            and callable(getattr(master, method_name, None))
+        }
+        # Dictionary to store commands registered by plugins
+        self._plugin_commands: dict[str, set[str]] = {}
+        # Dictionary to store the owner of each command
+        self._command_owners: dict[str, str] = {}
+
+        # Initialize the plugin directory and disabled plugins
         self.plugin_dir = plugin_dir  # Directory where plugins are stored
         self.disabled_plugins = SetConfig(  # Set of disabled plugins
             Path("CLI-Toolkit/disabled_plugins.json")
@@ -49,7 +64,9 @@ class PluginManager:
         # Check before loading
         if plugin_name in self.disabled_plugins:  # Check if the plugin is disabled
             raise PluginDisabledError(f"Plugin '{plugin_name}' is disabled.")
-        if plugin_name in self.plugins:  # Check if the plugin is already loaded
+        if (
+            plugin_name in self.plugin_instances
+        ):  # Check if the plugin is already loaded
             raise PluginAlreadyLoadedWarning(
                 f"Plugin '{plugin_name}' is already loaded."
             )
@@ -64,7 +81,6 @@ class PluginManager:
         # Get the path to the plugin file
         plugin_path = self.plugin_dir / f"{plugin_name}.py"
         if plugin_path.exists():  # Check if the plugin file exists
-
             # Create a module spec
             spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
             if not (spec and spec.loader):  # Check if the module spec is invalid
@@ -86,18 +102,36 @@ class PluginManager:
 
             # Create an instance of the plugin class
             plugin_instance: BasePlugin = module.Plugin(self.master)
-            self.plugins[plugin_name] = plugin_instance
             self.logger.debug(f"Plugin instance: {plugin_instance}")
 
-            # Add all methods in the plugin instance to the main application
+            # Collect all command methods exported by the plugin
+            plugin_methods: dict[str, object] = {}
             for method_name in dir(plugin_instance):
-                # Skip method names that do not start with "cmd_"
                 if not method_name.startswith("cmd_"):
                     continue
-                # Add the method to the main application if it is callable
                 if callable(method_attr := getattr(plugin_instance, method_name, None)):
-                    setattr(self.master, method_name, method_attr)
-                    self.logger.debug(f"Added command '{method_name[4:]}' to CLI.")
+                    plugin_methods[method_name] = method_attr
+
+            # Validate command collisions before injecting methods into the app
+            for method_name in plugin_methods:
+                if method_name in self._core_commands:
+                    raise ValueError(
+                        f"Plugin '{plugin_name}' command '{method_name[4:]}' conflicts with a built-in command."
+                    )
+                if method_name in self._command_owners:
+                    raise ValueError(
+                        f"Plugin '{plugin_name}' command '{method_name[4:]}' conflicts with command from plugin '{self._command_owners[method_name]}'."
+                    )
+
+            # Add validated plugin commands into the main application
+            registered_commands: set[str] = set()
+            for method_name, method_attr in plugin_methods.items():
+                setattr(self.master, method_name, method_attr)
+                self._command_owners[method_name] = plugin_name
+                registered_commands.add(method_name)
+                self.logger.debug(f"Added command '{method_name[4:]}' to CLI.")
+            self.plugin_instances[plugin_name] = plugin_instance
+            self._plugin_commands[plugin_name] = registered_commands
 
             # Log a message
             self.logger.info(f"Loaded plugin '{plugin_name}'.")
@@ -113,26 +147,23 @@ class PluginManager:
         self.logger.info(f"Unloading plugin '{plugin_name}'.")
 
         # Check if the plugin is loaded
-        if plugin_name in self.plugins:
-
+        if plugin_name in self.plugin_instances:
             # Get the plugin instance
-            plugin_instance = self.plugins[plugin_name]
+            plugin_instance = self.plugin_instances[plugin_name]
             self.logger.debug(f"Plugin instance: {plugin_instance}")
 
-            # Remove all methods in the plugin instance from the main application
-            for method_name in dir(plugin_instance):
-                # Skip methods that don't start with "cmd_"
-                if not method_name.startswith("cmd_"):
+            # Remove only commands previously registered by this plugin
+            for method_name in self._plugin_commands.get(plugin_name, set()):
+                if self._command_owners.get(method_name) != plugin_name:
                     continue
-                # Remove the method from the main application
-                if callable(getattr(plugin_instance, method_name, None)) and hasattr(
-                    self.master, method_name
-                ):
+                if hasattr(self.master, method_name):
                     delattr(self.master, method_name)
                     self.logger.debug(f"Removed command '{method_name[4:]}' from CLI.")
+                del self._command_owners[method_name]
+            self._plugin_commands.pop(plugin_name, None)
 
             # Remove the plugin from the dictionary of loaded plugins
-            del self.plugins[plugin_name]
+            del self.plugin_instances[plugin_name]
 
             # Log a message
             self.logger.info(f"Unloaded plugin '{plugin_name}'.")
@@ -162,7 +193,9 @@ class PluginManager:
 
         self.disabled_plugins.add(plugin_name)
         self.disabled_plugins.save()  # Save the updated set of disabled plugins to the file
-        if plugin_name in self.plugins:  # If the plugin is currently loaded, unload it
+        if (
+            plugin_name in self.plugin_instances
+        ):  # If the plugin is currently loaded, unload it
             self.unload_plugin(plugin_name)
         self.logger.info(f"Disabled plugin '{plugin_name}'.")
 
@@ -202,7 +235,7 @@ class PluginManager:
                 if plugin_name in self.disabled_plugins:  # Skip disabled plugins
                     self.logger.info(f"Plugin '{plugin_name}' is disabled. Skipping...")
                     continue
-                if plugin_name in self.plugins:  # Skip already loaded plugins
+                if plugin_name in self.plugin_instances:  # Skip already loaded plugins
                     self.logger.info(
                         f"Plugin '{plugin_name}' is already loaded. Skipping..."
                     )
@@ -235,7 +268,7 @@ class PluginManager:
         unloaded_count = 0  # Count the number of unloaded plugins
 
         # Iterate over all loaded plugins
-        for plugin_name in list(self.plugins.keys()):
+        for plugin_name in list(self.plugin_instances.keys()):
             self.unload_plugin(plugin_name)  # Unload the plugin
             unloaded_count += 1
 
@@ -251,7 +284,7 @@ class PluginManager:
         reloaded_count = 0  # Count the number of reloaded plugins
 
         # Iterate over all loaded plugins
-        for plugin_name in list(self.plugins.keys()):
+        for plugin_name in list(self.plugin_instances.keys()):
             self.reload_plugin(plugin_name)  # Reload the plugin
             reloaded_count += 1
 

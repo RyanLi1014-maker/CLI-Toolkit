@@ -12,7 +12,10 @@ class ListConfig(list):
     """Configuration class for handling application configuration."""
 
     def __init__(
-        self, config_path: Path, default_config: list = [], auto_load: bool = True
+        self,
+        config_path: Path,
+        default_config: list | None = None,
+        auto_load: bool = True,
     ):
         """Initialize the configuration.
         Args:
@@ -32,10 +35,12 @@ class ListConfig(list):
         if not self.config_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
             self.config_file_path.parent.mkdir(parents=True)
-        self.default = default_config
+
+        # Set the default configuration
+        self.default = list(default_config) if default_config is not None else []
 
         # Load the configuration from the file if auto_load is True, otherwise update the configuration with the default values
-        self.load() if auto_load else self.extend(default_config)
+        self.load() if auto_load else self.extend(self.default)
 
         # Log the initialization of the configuration with the file path and default values
         self.logger.info(
@@ -98,7 +103,7 @@ class DictConfig(dict):
     def __init__(
         self,
         config_path: Path,
-        default_config: dict = {},
+        default_config: dict | None = None,
         auto_load: bool = True,
     ):
         """Initialize the configuration.
@@ -119,10 +124,10 @@ class DictConfig(dict):
         if not self.config_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
             self.config_file_path.parent.mkdir(parents=True)
-        self.default = default_config
+        self.default = dict(default_config) if default_config is not None else {}
 
         # Load the configuration from the file if auto_load is True, otherwise update the configuration with the default values
-        self.load() if auto_load else self.update(default_config)
+        self.load() if auto_load else self.update(self.default)
 
         # Log the initialization of the configuration with the file path and default values
         self.logger.info(
@@ -184,7 +189,10 @@ class SetConfig(set):
     """Configuration class for handling application configuration."""
 
     def __init__(
-        self, config_path: Path, default_config: set = set(), auto_load: bool = True
+        self,
+        config_path: Path,
+        default_config: set | None = None,
+        auto_load: bool = True,
     ):
         """Initialize the configuration.
         Args:
@@ -204,10 +212,10 @@ class SetConfig(set):
         if not self.config_file_path.parent.exists():
             self.logger.warning("Config directory does not exist. Creating...")
             self.config_file_path.parent.mkdir(parents=True)
-        self.default = default_config
+        self.default = set(default_config) if default_config is not None else set()
 
         # Load the configuration from the file if auto_load is True, otherwise update the configuration with the default values
-        self.load() if auto_load else self.update(default_config)
+        self.load() if auto_load else self.update(self.default)
 
         # Log the initialization of the configuration with the file path and default values
         self.logger.info(

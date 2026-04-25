@@ -14,7 +14,7 @@ from util.config import DictConfig  # Configuration module
 
 # Define constants
 PYTHON_VERSION = (version_info.major, version_info.minor, version_info.micro)
-CLIT_VERSION = (0, 2, 0)  # CLI-Toolkit version
+CLIT_VERSION = (0, 2, 1)  # CLI-Toolkit version
 CLIT_LOGO = r"""
          ________      ___           ___                                                    
         |\   ____\    |\  \         |\  \                                                   
@@ -64,7 +64,7 @@ class CLI_Toolkit_App:
             encoding="utf-8",
         )
         self.logger = logger.getChild("App")
-        self.logger.debug(f"Logger initialized.")
+        self.logger.debug("Logger initialized.")
 
         # Initialize the configuration
         self.config = DictConfig(
@@ -86,7 +86,7 @@ class CLI_Toolkit_App:
         )
         if self.config["plugin"]["load_on_start"]:  # Load all plugins
             self.plugin_manager.load_all_plugins()
-        self.logger.debug(f"Plugin manager initialized.")
+        self.logger.debug("Plugin manager initialized.")
 
         # Initialize aliases
         self.aliases = DictConfig(
@@ -165,7 +165,7 @@ class CLI_Toolkit_App:
         """Start the command loop."""
         self.console.rule()
         self.console.print(  # Print the welcome message
-            f"Welcome to [bold yellow]CLI-Toolkit[/bold yellow]!",
+            "Welcome to [bold yellow]CLI-Toolkit[/bold yellow]!",
             "Type 'help' for a list of available commands.",
         )
         # Infinite loop to continuously prompt for user input and dispatch commands
@@ -231,7 +231,7 @@ class CLI_Toolkit_App:
                             style="green",
                         )
                     else:  # If the required arguments are not provided, show an error message
-                        self.logger.info(f"Invalid alias creation usage.")
+                        self.logger.info("Invalid alias creation usage.")
                         self.console.print(
                             "Invalid alias creation usage. For more information, type 'help alias'."
                         )
@@ -251,7 +251,7 @@ class CLI_Toolkit_App:
                                 f"Alias '{alias_name}' not found.", style="red"
                             )
                     else:  # If the required argument is not provided, show an error message
-                        self.logger.info(f"Invalid alias deletion usage.")
+                        self.logger.info("Invalid alias deletion usage.")
                         self.console.print(
                             "Invalid alias deletion usage. For more information, type 'help alias'."
                         )
@@ -310,7 +310,6 @@ class CLI_Toolkit_App:
             command: The specific command to show detailed help for.
         """
         if args:
-
             # Get the command name
             cmd_name = args[0]  # Get the command name from the arguments
             self.logger.debug(f"Showing help for command '{cmd_name}'")
@@ -336,7 +335,7 @@ class CLI_Toolkit_App:
                 )
 
         else:  # If no specific command is provided, show a list of available commands
-            self.logger.debug(f"Showing help for all commands.")
+            self.logger.debug("Showing help for all commands.")
 
             # Iterate over all methods in the class
             command_list = []  # List to store command names
@@ -570,7 +569,7 @@ class CLI_Toolkit_App:
                     ):  # If a specific sub-command is provided, show detailed help for that sub-command
                         plugin_name = sub_args[0]
                         self.logger.debug(f"Showing help for plugin '{plugin_name}'")
-                        if plugin_instance := self.plugin_manager.plugins.get(
+                        if plugin_instance := self.plugin_manager.plugin_instances.get(
                             plugin_name
                         ):
                             if plugin_doc := plugin_instance.__doc__:
@@ -643,7 +642,10 @@ class CLI_Toolkit_App:
 
             # Iterate over all loaded plugins
             loaded_plugin = []  # List to hold loaded plugin names and descriptions
-            for plugin_name, plugin_instance in self.plugin_manager.plugins.items():
+            for (
+                plugin_name,
+                plugin_instance,
+            ) in self.plugin_manager.plugin_instances.items():
                 if plugin_doc := plugin_instance.__doc__:
                     self.logger.debug(
                         f"Plugin '{plugin_name}' has docstring. Adding to list."
@@ -665,7 +667,7 @@ class CLI_Toolkit_App:
                 if file.is_file() and file.suffix == ".py":  # Skip non-Python files
                     # Get the plugin name from the file name
                     plugin_name = file.stem
-                    if plugin_name not in self.plugin_manager.plugins:
+                    if plugin_name not in self.plugin_manager.plugin_instances:
                         unloaded_plugin.append(f"[blue]{plugin_name}[/blue]: Unloaded")
 
             disabled_plugin = []  # List to hold disabled plugin names and descriptions
@@ -716,15 +718,15 @@ class CLI_Toolkit_App:
 
         # Display Python version and CLI-Toolkit version
         app_version = [
-            f"[blue]Python[/blue] v{".".join([str(part) for part in PYTHON_VERSION])}",
-            f"[blue]CLI-Toolkit[/blue] v{".".join([str(part) for part in self.VERSION])}",
+            f"[blue]Python[/blue] v{'.'.join([str(part) for part in PYTHON_VERSION])}",
+            f"[blue]CLI-Toolkit[/blue] v{'.'.join([str(part) for part in self.VERSION])}",
         ]
         self.console.print(Panel("\n".join(app_version), title="Application Versions"))
 
         # Display plugin versions
         plugin_versions_list = [
-            f"[blue]{plugin_name}[/blue] v{".".join([str(part) for part in plugin.VERSION])}"
-            for plugin_name, plugin in self.plugin_manager.plugins.items()
+            f"[blue]{plugin_name}[/blue] v{'.'.join([str(part) for part in plugin.VERSION])}"
+            for plugin_name, plugin in self.plugin_manager.plugin_instances.items()
         ]
         (
             self.console.print(
