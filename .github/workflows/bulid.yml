@@ -1,0 +1,35 @@
+name: Pyinstaller Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install deps
+        run: |
+          uv sync
+
+      - name: Build
+        run: uv run pyinstaller main.py --name "CLI-Toolkit" --clean
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-${{ matrix.os }}
+          path: dist/

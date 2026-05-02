@@ -1,123 +1,279 @@
 # CLI-Toolkit
 
-Have you ever written a large amount of code and placed it all in one folder, feeling chaotic and not knowing what each part is used for?
+<div align="center">
 
-CLI-Toolkit is a flexible and customizable command-line interface (CLI) application, featuring built-in command handling, colored output, and intuitive user interaction.
+**A compact and powerful command-line toolkit with an extensible plugin system**
 
-More importantly, it provides an [easy-to-develop plugin system](doc/Plugin%20development.md), where by adding just a few lines of code to your script, you can organize them neatly and conveniently call each function!
+[![Python Version](https://img.shields.io/badge/python-≥3.14-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Package Manager](https://img.shields.io/badge/package%20manager-uv-orange.svg)](https://github.com/astral-sh/uv)
 
-## Features
+</div>
 
-- Clean, modular CLI architecture
-- Colored terminal output for better user experience
-- A very easy-to-develop plugin system
+---
 
-# Usage
+## 📖 Overview
 
-## Installation
+CLI-Toolkit is a flexible, modular command-line interface application designed to bring order to your scripts and utilities. Instead of scattering code across multiple files in a chaotic directory structure, CLI-Toolkit provides a clean architecture with an intuitive plugin system that makes organizing and accessing your tools effortless.
 
-1. Install Python 3.14 or above from [python.org](https://www.python.org/)
-2. Add Python scripts directory to PATH environment variable
-3. Download an arbitrary release from [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases)
-4. cd to the project directory and run the following command to install the requirements:
+### ✨ Why CLI-Toolkit?
+
+- **Eliminate Chaos**: Say goodbye to disorganized script collections
+- **Intuitive Interface**: Beautiful colored output and user-friendly commands
+- **Extensible Design**: Add functionality through simple plugins with minimal code
+- **Modular Architecture**: Clean separation between core functionality and extensions
+
+---
+
+## 🚀 Features
+
+- **🎨 Rich Terminal Output**: Colored, formatted console output for enhanced readability
+- **🔌 Dynamic Plugin System**: Load, unload, and manage plugins at runtime
+- **📦 Modular Architecture**: Clean separation of concerns between core and plugins
+- **⚙️ Configuration Management**: Built-in support for plugin configuration storage
+- **📝 Logging Integration**: Comprehensive logging for debugging and monitoring
+- **💬 Interactive CLI**: User-friendly command prompt with help system
+- **🛡️ Type Safety**: Modern Python with type hints and static analysis
+
+---
+
+## 📋 Prerequisites
+
+Before installing CLI-Toolkit, ensure you have:
+
+- **Python ≥ 3.14** installed on your system
+- **[uv](https://github.com/astral-sh/uv)** package manager installed
+
+Install `uv` by following the [official installation guide](https://github.com/astral-sh/uv).
+
+---
+
+## 🛠️ Installation
+
+1. **Download the source code** from [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases):
+   - Download the latest release archive (e.g., `CLI-Toolkit-v0.3.0.zip`)
+   - Extract it to your desired location
+
+2. **Navigate to the project directory**:
+
    ```bash
-   pip install -r requirements.txt
+   cd CLI-Toolkit
    ```
 
-## Running
-
-1. cd to the project directory
-2. Start the application:
+3. **Install dependencies and set up the environment** using `uv`:
    ```bash
-   python main.py
-   ```
-3. You'll see the CLI-Toolkit logo and welcome message:
-
-   ```
-            ________      ___           ___
-           |\   ____\    |\  \         |\  \
-           \ \  \___|    \ \  \        \ \  \    ____________
-            \ \  \        \ \  \        \ \  \  |\____________\
-             \ \  \____    \ \  \____    \ \  \ \|____________|
-              \ \_______\   \ \_______\   \ \__\
-               \|_______|    \|_______|    \|__|
-
-    _________    ________      ________      ___           ___  __        ___      _________
-   |\___   ___\ |\   __  \    |\   __  \    |\  \         |\  \|\  \     |\  \    |\___   ___\
-   \|___ \  \_| \ \  \|\  \   \ \  \|\  \   \ \  \        \ \  \/  /|_   \ \  \   \|___ \  \_|
-        \ \  \   \ \  \\\  \   \ \  \\\  \   \ \  \        \ \   ___  \   \ \  \       \ \  \
-         \ \  \   \ \  \\\  \   \ \  \\\  \   \ \  \____    \ \  \\ \  \   \ \  \       \ \  \
-          \ \__\   \ \_______\   \ \_______\   \ \_______\   \ \__\\ \__\   \ \__\       \ \__\
-           \|__|    \|_______|    \|_______|    \|_______|    \|__| \|__|    \|__|        \|__|
-
-   ────────────────────────────────────────────────────────────────────────────────────────────────
-   Welcome to CLI-Toolkit! Type `help` for a list of available commands.
-   CLI-Toolkit>
+   uv sync
    ```
 
-4. Interact with the application:
-   - List all commands:
-     ```
-     CLI-Toolkit> help
-     ```
-   - Get detailed help for a command:
-     ```
-     CLI-Toolkit> help <command_name>
-     ```
-   - Exit the application:
-     ```
-     CLI-Toolkit> exit
-     ```
+That's it! CLI-Toolkit is now ready to use.
 
-## Plugin installation
+---
 
-1. Run the application first to create the `plugin` directory if it doesn't exist.
-2. Copy your plugin file (e.g., `my_plugin.py`) to the `plugin` directory.
-3. Load the plugin in the CLI-Toolkit:
+## 🎯 Quick Start
+
+### Running the Application
+
+Start CLI-Toolkit with:
+
+```bash
+uv run main.py
+```
+
+You'll see the welcome screen:
+
+```
+         ________      ___           ___
+        |\   ____\    |\  \         |\  \
+        \ \  \___|    \ \  \        \ \  \    ____________
+         \ \  \        \ \  \        \ \  \  |\____________\
+          \ \  \____    \ \  \____    \ \  \ \|____________|
+           \ \_______\   \ \_______\   \ \__\
+            \|_______|    \|_______|    \|__|
+
+ _________    ________      ________      ___           ___  __        ___      _________
+|\___   ___\ |\   __  \    |\   __  \    |\  \         |\  \|\  \     |\  \    |\___   ___\
+\|___ \  \_| \ \  \|\  \   \ \  \|\  \   \ \  \        \ \  \/  /|_   \ \  \   \|___ \  \_|
+     \ \  \   \ \  \\\  \   \ \  \\\  \   \ \  \        \ \   ___  \   \ \  \       \ \  \
+      \ \  \   \ \  \\\  \   \ \  \\\  \   \ \  \____    \ \  \\ \  \   \ \  \       \ \  \
+       \ \__\   \ \_______\   \ \_______\   \ \_______\   \ \__\\ \__\   \ \__\       \ \__\
+        \|__|    \|_______|    \|_______|    \|_______|    \|__| \|__|    \|__|        \|__|
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+Welcome to CLI-Toolkit! Type `help` for a list of available commands.
+CLI-Toolkit>
+```
+
+### Basic Commands
+
+Once inside the CLI:
+
+- **List all commands**:
+
+  ```
+  CLI-Toolkit> help
+  ```
+
+- **Get detailed help for a specific command**:
+
+  ```
+  CLI-Toolkit> help <command_name>
+  ```
+
+- **Check version information**:
+
+  ```
+  CLI-Toolkit> version
+  ```
+
+- **Exit the application**:
+  ```
+  CLI-Toolkit> exit
+  ```
+
+---
+
+## 🔌 Plugin System
+
+The heart of CLI-Toolkit is its powerful yet simple plugin system. Plugins extend functionality without modifying core code.
+
+### Installing Plugins
+
+1. **Create the plugin directory** (automatically created on first run):
+
+   ```bash
+   uv run main.py  # Run once to initialize
+   ```
+
+2. **Place your plugin file** in the `plugin/` directory:
+
+   ```
+   plugin/
+   └── my_plugin.py
+   ```
+
+3. **Load the plugin** from within CLI-Toolkit:
+
    ```
    CLI-Toolkit> plugin load my_plugin
    ```
-   If there is any space in the plugin name, you need to use quotes to wrap the plugin name.
+
+   For plugins with spaces in their name:
+
    ```
    CLI-Toolkit> plugin load "my plugin"
    ```
-4. Use help to see the commands provided by the plugin:
+
+4. **View available commands**:
    ```
    CLI-Toolkit> help
    ```
 
-After loading the plugin, you can use the plugin's commands as you would use any other command in the CLI-Toolkit.
+Your plugin commands are now available alongside built-in commands!
 
-If you want to develop your own plugin, please refer to [Plugin development](doc/Plugin%20development.md).
+### Developing Plugins
 
-# Contributing
+Creating a plugin is straightforward. Create a Python file in the `plugin/` directory:
 
-If you want to contribute to this project, please follow these steps:
+```python
+from api import BasePlugin
 
-1. Install Git from [git-scm.com](http://git-scm.com)
-2. From [python.org](https://www.python.org/) install Python3.14 or above
-3. Fork the repository.
-4. Clone the repository and checkout to the develop branch.
 
-   ```bash
-   git clone https://github.com/RyanLi1014-maker/CLI-Toolkit.git  # Clone the repository
-   cd CLI-Toolkit  # cd to the project directory
-   git checkout develop  # Checkout to the develop branch
-   pip install -r requirements.txt  # Install the required packages
+class Plugin(BasePlugin):
+    """My awesome plugin."""
 
-   ```
+    VERSION = (1, 0, 0)  # Optional version number
 
-5. Create a new branch for your changes.
-   ```
-   git checkout -b feature-my_feature
-   ```
-6. Create a pull request to the [develop](https://github.com/RyanLi1014-maker/CLI-Toolkit/tree/develop) branch.
-7. Wait for your pull request to be merged. If your pull request is accepted, the changes will be included in the next release.
+    def cmd_hello(self, args):
+        """Say hello."""
+        self.console.print("Hello from my plugin!", style="bold green")
 
-To see the latest stable version, please checkout to the [main](https://github.com/RyanLi1014-maker/CLI-Toolkit/tree/main) branch.
+        if args:
+            self.console.print(f"Arguments received: {args}")
+```
 
-To see the latest changes, please checkout to the [develop](https://github.com/RyanLi1014-maker/CLI-Toolkit/tree/develop) branch.
+That's it! The method `cmd_hello` automatically becomes the `hello` command.
 
-# License
+#### Key Plugin Features
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- **Rich Console Output**: Use `self.console.print()` for styled messages
+- **Logging**: Access plugin-specific logger via `self.logger`
+- **Configuration**: Save/load settings with `DictConfig`
+- **Version Tracking**: Register plugin versions with the `VERSION` attribute
+- **App Integration**: Access the main application through `self.master`
+
+For comprehensive plugin development guidance, see [Plugin Development Documentation](doc/Plugin%20development.md).
+
+---
+
+## 🧪 Development
+
+### Code Quality
+
+CLI-Toolkit uses [Ruff](https://github.com/astral-sh/ruff) for linting and code quality. The project enforces:
+
+- **B**: Bugbear checks
+- **C4**: Comprehension rules
+- **D**: Docstring conventions
+- **E/F**: PEP8 errors and warnings
+- **I**: Import sorting
+- **PTH**: Pathlib usage
+- **SIM**: Simplify code
+- **UP**: Pyupgrade rules
+- **W**: PEP8 warnings
+
+### Adding Dependencies
+
+Edit `pyproject.toml` and run:
+
+```bash
+uv sync
+```
+
+---
+
+## 📚 Documentation
+
+- **[Plugin Development Guide](doc/Plugin%20development.md)**: Complete tutorial for creating plugins
+- **[Source Code](src/)**: Well-documented source with type hints
+
+---
+
+## 🔄 Version Information
+
+- **Stable releases**: Check the [main branch](https://github.com/RyanLi1014-maker/CLI-Toolkit/tree/main)
+- **Latest changes**: Check the [develop branch](https://github.com/RyanLi1014-maker/CLI-Toolkit/tree/develop)
+- **Current version**: See `pyproject.toml` or use the `version` command
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Whether it's:
+
+- 🐛 Bug reports
+- 💡 Feature requests
+- 📝 Documentation improvements
+- 🔧 Code contributions
+
+Please feel free to open issues or submit pull requests.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **[rich](https://github.com/Textualize/rich)**: Beautiful terminal formatting
+- **[uv](https://github.com/astral-sh/uv)**: Fast Python package installer and resolver
+
+---
+
+<div align="center">
+
+**Made with ❤️ by [RyanLi1014-maker](https://github.com/RyanLi1014-maker)**
+
+</div>

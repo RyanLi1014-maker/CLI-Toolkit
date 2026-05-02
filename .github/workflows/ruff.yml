@@ -1,0 +1,64 @@
+name: Ruff Auto Check & Format
+
+on:
+  push:
+    paths:
+      - "**/*.py"
+  pull_request:
+    paths:
+      - "**/*.py"
+  workflow_dispatch:
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install deps
+        run: uv sync
+
+      - name: Check code on main
+        if: github.ref_name == 'main'
+        run: uv run ruff check .
+      
+      - name: Check code on other branches
+        if: github.ref_name != 'main'
+        run: uv run ruff check . --fix
+
+      - name: Commit changes in checking code
+        if: github.ref_name != 'main'
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add .
+            git commit -m "actions: auto check with ruff"
+            git push
+          fi
+
+      - name: Check format on main
+        if: github.ref_name == 'main'
+        run: uv run ruff format --check .
+
+      - name: Auto format on other branches
+        if: github.ref_name != 'main'
+        run: uv run ruff format .
+
+      - name: Commit changes in formatting code
+        if: github.ref_name != 'main'
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add .
+            git commit -m "actions: auto format with ruff"
+            git push
+          fi

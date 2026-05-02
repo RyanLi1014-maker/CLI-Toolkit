@@ -1,0 +1,29 @@
+[project]
+name = "CLI-Toolkit"
+version = "0.3.0"
+description = "A compact and powerful command-line toolkit"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "rich>=15.0.0",
+]
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "C4",
+    "D",
+    "E",
+    "F",
+    "I",
+    "PTH",
+    "SIM",
+    "UP",
+    "W",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.20.0",
+    "ruff>=0.15.12",
+]
