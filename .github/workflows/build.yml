@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -22,11 +21,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Install deps
-        run: |
-          uv sync
+        run: uv sync
 
       - name: Build
-        run: uv run pyinstaller main.py --name "CLI-Toolkit" --clean
+        run: uv run build.py
       
       - name: Upload artifact
         uses: actions/upload-artifact@v7

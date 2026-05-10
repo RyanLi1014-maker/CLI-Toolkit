@@ -1,9 +1,11 @@
 # CLI-Toolkit
 config/
 log/
+package/
 plugin/
 
 # IDE / Editor config files
+.claude/
 .idea/
 .vscode/
 

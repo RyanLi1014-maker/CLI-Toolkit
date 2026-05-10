@@ -28,11 +28,12 @@ CLI-Toolkit is a flexible, modular command-line interface application designed t
 ## 🚀 Features
 
 - **🎨 Rich Terminal Output**: Colored, formatted console output for enhanced readability
+- **⌨️ Interactive CLI**: User-friendly command loop with help system
 - **🔌 Dynamic Plugin System**: Load, unload, and manage plugins at runtime
 - **📦 Modular Architecture**: Clean separation of concerns between core and plugins
 - **⚙️ Configuration Management**: Built-in support for plugin configuration storage
 - **📝 Logging Integration**: Comprehensive logging for debugging and monitoring
-- **💬 Interactive CLI**: User-friendly command prompt with help system
+- **💬 Interactive CLI**: User-friendly command loop with help system and file-backed command history
 - **🛡️ Type Safety**: Modern Python with type hints and static analysis
 
 ---
@@ -50,22 +51,61 @@ Install `uv` by following the [official installation guide](https://github.com/a
 
 ## 🛠️ Installation
 
-1. **Download the source code** from [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases):
-   - Download the latest release archive (e.g., `CLI-Toolkit-v0.3.0.zip`)
-   - Extract it to your desired location
+### Executable Version (Recommended)
 
-2. **Navigate to the project directory**:
+The easiest way to get started is by downloading the executable for your platform from the [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases).
+
+1. Download the executable for your OS.
+2. Place it in a convenient folder.
+3. Run the downloaded executable.
+
+On first launch, CLI-Toolkit initializes itself and creates runtime support directories under `_internal`.
+
+- The executable version stores generated runtime data in `_internal/`
+- Plugin folder and runtime folders are created there automatically
+- You can inspect `_internal/plugin/` to add or manage plugins manually
+
+Example:
+
+```bash
+# Windows
+CLI-Toolkit.exe
+
+# macOS / Linux (if built for the platform)
+./CLI-Toolkit
+```
+
+> If you are using the executable version, open the generated `_internal` folder to find runtime directories such as `plugin/`, `config/`, and other support folders.
+
+### Source Code Version
+
+If you prefer to run CLI-Toolkit from source, or if you want to inspect and customize the code, follow these steps:
+
+1. Download the source code from [Releases](https://github.com/RyanLi1014-maker/CLI-Toolkit/releases) or clone the repository:
+
+   ```bash
+   git clone https://github.com/RyanLi1014-maker/CLI-Toolkit.git
+   ```
+
+2. Navigate to the project directory:
 
    ```bash
    cd CLI-Toolkit
    ```
 
-3. **Install dependencies and set up the environment** using `uv`:
+3. Install dependencies and set up the environment using `uv`:
+
    ```bash
    uv sync
    ```
 
-That's it! CLI-Toolkit is now ready to use.
+4. Run CLI-Toolkit from source:
+
+   ```bash
+   uv run main.py
+   ```
+
+The source version keeps plugin files and configuration folders next to the project root, making it easier to develop and customize CLI-Toolkit.
 
 ---
 
@@ -73,7 +113,7 @@ That's it! CLI-Toolkit is now ready to use.
 
 ### Running the Application
 
-Start CLI-Toolkit with:
+If you are using the executable version, simply run the downloaded executable. Otherwise, cd into the project directory and start CLI-Toolkit with:
 
 ```bash
 uv run main.py
@@ -138,18 +178,15 @@ The heart of CLI-Toolkit is its powerful yet simple plugin system. Plugins exten
 
 ### Installing Plugins
 
-1. **Create the plugin directory** (automatically created on first run):
-
-   ```bash
-   uv run main.py  # Run once to initialize
-   ```
-
+1. **Run the application to create the plugin directory** (automatically created on first run)
 2. **Place your plugin file** in the `plugin/` directory:
 
    ```
    plugin/
    └── my_plugin.py
    ```
+
+   If you are using the executable version, this directory is created under `_internal/plugin/`.
 
 3. **Load the plugin** from within CLI-Toolkit:
 
@@ -201,7 +238,122 @@ That's it! The method `cmd_hello` automatically becomes the `hello` command.
 - **Version Tracking**: Register plugin versions with the `VERSION` attribute
 - **App Integration**: Access the main application through `self.master`
 
-For comprehensive plugin development guidance, see [Plugin Development Documentation](doc/Plugin%20development.md).
+For comprehensive plugin development guidance, see [Plugin Development Documentation](doc/plugin_development_guide.md).
+
+---
+
+## 📦 Manual Package Installation
+
+Some plugins may require external Python packages that are not included in the main project dependencies. You can manually download these packages from PyPI and place them in the `package/` directory for your plugins to import.
+
+### Why Use the `package/` Directory?
+
+- **Plugin Isolation**: Keep plugin-specific dependencies separate from core dependencies
+- **Customizable**: Choose which packages to download and even create your own for your plugin
+- **Executable Support**: Allows you to download packages for CLI-Toolkit Executable
+
+### Method 1: Using `uv` (Recommended)
+
+The easiest way to download a package is using `uv`:
+
+1. cd to the project directory
+2. Download the package with `uv pip install`
+
+```bash
+# Download a package to the package directory
+uv pip install <package_name> --target ./package
+
+# Example: Download the 'requests' package
+uv pip install requests --target ./package
+```
+
+**For multiple packages:**
+
+```bash
+uv pip install package1 package2 package3 --target ./package
+```
+
+### Method 2: Using PyPI Website
+
+You can also download packages directly from [PyPI](https://pypi.org/):
+
+1. **Visit PyPI**: Go to [PyPI](https://pypi.org/) and search for the package you want
+
+2. **Download the wheel or source file**:
+   - Look for the "Download files" section
+   - Choose the appropriate file for your platform:
+     - `.whl` files (wheels) are preferred for faster installation
+     - `.tar.gz` files are source distributions
+
+3. **Install the package**:
+   - For `.whl` files, run following command in the terminal:
+     ```bash
+     uv pip install your_package.whl --target ./package
+     ```
+   - For `.tar.gz` files, unzip the file and place the whole folder in the `package/` directory.
+
+### Using Packages in Plugins
+
+Once packages are in the `package/` directory, they will be automatically available for import in your plugins:
+
+```python
+from api import BasePlugin
+import requests  # This works if requests is in package/ directory
+
+
+class Plugin(BasePlugin):
+    """Plugin that uses external packages."""
+
+    def cmd_fetch(self, args):
+        """Fetch data using requests library."""
+        response = requests.get("https://api.example.com")
+        self.console.print(f"Status: {response.status_code}", style="green")
+```
+
+### Important Notes
+
+⚠️ **Platform Compatibility**: Ensure downloaded packages match your operating system and Python version. Wheels built for Linux won't work on Windows, and vice versa.
+
+⚠️ **Version Conflicts**: Be careful about version conflicts between packages in the `package/` directory and those installed via `uv sync`.
+
+⚠️ **Priority**: Packages that are already included in the project dependencies such as `rich` will be given priority for import.
+
+💡 **Best Practice**: Document any external packages your plugin requires in the plugin's docstring or comments so users know what to install.
+
+### Checking Installed Packages
+
+To see what's currently in your package directory:
+
+```bash
+ls package/      # On Linux/Mac
+dir package\     # On Windows
+```
+
+### Removing Packages
+
+If you need to remove a package from the `package/` directory:
+
+**Using command line:**
+
+```bash
+# Remove a specific package file
+rm package/<package_filename>          # On Linux/Mac
+del package\<package_filename>         # On Windows
+
+# Example: Remove requests package
+rm package/requests-2.31.0-py3-none-any.whl    # On Linux/Mac
+del package\requests-2.31.0-py3-none-any.whl   # On Windows
+```
+
+**Using file explorer:**
+
+- Navigate to the `package/` directory
+- Select the package file(s) you want to remove
+- Delete them using your system's standard delete operation
+
+⚠️ **Caution**: Before removing a package, ensure that no active plugins depend on it. Removing a required package may cause plugin errors.
+
+💡 **Tip**: If you're unsure which plugins use a package, check the plugin source code for import statements or refer to the plugin documentation.
 
 ---
 
@@ -221,6 +373,14 @@ CLI-Toolkit uses [Ruff](https://github.com/astral-sh/ruff) for linting and code 
 - **UP**: Pyupgrade rules
 - **W**: PEP8 warnings
 
+### Dependencies
+
+Core runtime dependencies (defined in `pyproject.toml`):
+
+| Package | Purpose |
+| --- | --- |
+| [rich](https://github.com/Textualize/rich) | Terminal formatting and plugin console output |
+
 ### Adding Dependencies
 
 Edit `pyproject.toml` and run:
@@ -233,7 +393,7 @@ uv sync
 
 ## 📚 Documentation
 
-- **[Plugin Development Guide](doc/Plugin%20development.md)**: Complete tutorial for creating plugins
+- **[Plugin Development Guide](doc/plugin_development_guide.md)**: Complete tutorial for creating plugins
 - **[Source Code](src/)**: Well-documented source with type hints
 
 ---

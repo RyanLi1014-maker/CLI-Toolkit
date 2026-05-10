@@ -4,11 +4,15 @@ import json  # json file handling
 import logging  # Logging module
 from pathlib import Path  # file path handling
 
+from src.util.project_root import PROJECT_ROOT  # Get the project root directory
+
 # Set up logging
 logger = logging.getLogger("Config")
 
+CONFIG_DIRECTORY = PROJECT_ROOT / "config"
 
-def validate_nested_value(
+
+def _validate_nested_value(
     loaded_val, default_val, config_file_name: str, logger_obj, path=""
 ):
     """Recursively validate nested values.
@@ -51,7 +55,7 @@ def validate_nested_value(
                 result[key] = default_val[key]
             else:
                 child_path = f"{path}.{key}" if path else key
-                result[key] = validate_nested_value(
+                result[key] = _validate_nested_value(
                     loaded_val[key],
                     default_val[key],
                     config_file_name,
@@ -67,7 +71,7 @@ def validate_nested_value(
         for i in range(min_len):
             child_path = f"{path}[{i}]" if path else f"[{i}]"
             result.append(
-                validate_nested_value(
+                _validate_nested_value(
                     loaded_val[i],
                     default_val[i],
                     config_file_name,
@@ -112,7 +116,7 @@ class ListConfig(list):
         )
 
         # Set the configuration file path
-        self.config_file_path = Path("config") / config_path
+        self.config_file_path = CONFIG_DIRECTORY / config_path
         self.config_file_path.parent.mkdir(  # Check if the config directory exists
             parents=True, exist_ok=True
         )
@@ -129,24 +133,6 @@ class ListConfig(list):
             f"Configuration initialized with file: '{self.config_file_path}'"
         )
         self.logger.debug(f"Default configuration values: {self.default}")
-
-    def _validate_nested_value(self, loaded_val, default_val, path=""):
-        """Recursively validate nested values.
-
-        Wrapper method that delegates to the shared utility function.
-
-        Args:
-            loaded_val: The value from the loaded configuration.
-            default_val: The corresponding default value.
-            path: The current path in the configuration (for error messages).
-
-        Returns:
-            The validated value (either loaded or default if invalid).
-
-        """
-        return validate_nested_value(
-            loaded_val, default_val, self.config_file_path.name, self.logger, path
-        )
 
     def load(self) -> None:
         """Load the configuration from the file."""
@@ -172,11 +158,12 @@ class ListConfig(list):
                     # Validate each item and build validated content
                     min_len = min(len(content), len(self.default))
                     for i in range(min_len):
-                        loaded_val = content[i]
-                        default_val = self.default[i]
-                        path = f"[{i}]"
-                        validated_item = self._validate_nested_value(
-                            loaded_val, default_val, path
+                        validated_item = _validate_nested_value(
+                            content[i],
+                            self.default[i],
+                            self.config_file_path.name,
+                            self.logger,
+                            f"[{i}]",
                         )
                         validated_content.append(validated_item)
 
@@ -269,7 +256,7 @@ class DictConfig(dict):
         )
 
         # Set the configuration file path
-        self.config_file_path = Path("config") / config_path
+        self.config_file_path = CONFIG_DIRECTORY / config_path
         self.config_file_path.parent.mkdir(  # Check if the config directory exists
             parents=True, exist_ok=True
         )
@@ -286,24 +273,6 @@ class DictConfig(dict):
             f"Configuration initialized with file: '{self.config_file_path}'"
         )
         self.logger.debug(f"Default configuration values: {self.default}")
-
-    def _validate_nested_value(self, loaded_val, default_val, path=""):
-        """Recursively validate nested values.
-
-        Wrapper method that delegates to the shared utility function.
-
-        Args:
-            loaded_val: The value from the loaded configuration.
-            default_val: The corresponding default value.
-            path: The current path in the configuration (for error messages).
-
-        Returns:
-            The validated value (either loaded or default if invalid).
-
-        """
-        return validate_nested_value(
-            loaded_val, default_val, self.config_file_path.name, self.logger, path
-        )
 
     def load(self) -> None:
         """Load the configuration from the file."""
@@ -330,19 +299,20 @@ class DictConfig(dict):
                     # Validate each key and build validated content
                     for key in self.default:
                         if key in content:
-                            loaded_val = content[key]
-                            default_val = self.default[key]
-                            validated_content[key] = self._validate_nested_value(
-                                loaded_val, default_val, key
+                            validated_content[key] = _validate_nested_value(
+                                content[key],
+                                self.default[key],
+                                self.config_file_path.name,
+                                self.logger,
+                                key,
                             )
                         else:
-                            default_val = self.default[key]
                             self.logger.warning(
                                 f"File '{self.config_file_path.name}' "
                                 f"missing key '{key}'. "
                                 "Using default value."
                             )
-                            validated_content[key] = default_val
+                            validated_content[key] = self.default[key]
 
                     # Add extra keys from loaded content
                     # if structure validation is disabled
@@ -441,7 +411,7 @@ class SetConfig(set):
         )
 
         # Set the configuration file path
-        self.config_file_path = Path("config") / config_path
+        self.config_file_path = CONFIG_DIRECTORY / config_path
         self.config_file_path.parent.mkdir(  # Check if the config directory exists
             parents=True, exist_ok=True
         )
@@ -458,24 +428,6 @@ class SetConfig(set):
             f"Configuration initialized with file: '{self.config_file_path}'"
         )
         self.logger.debug(f"Default configuration values: {self.default}")
-
-    def _validate_nested_value(self, loaded_val, default_val, path=""):
-        """Recursively validate nested values.
-
-        Wrapper method that delegates to the shared utility function.
-
-        Args:
-            loaded_val: The value from the loaded configuration.
-            default_val: The corresponding default value.
-            path: The current path in the configuration (for error messages).
-
-        Returns:
-            The validated value (either loaded or default if invalid).
-
-        """
-        return validate_nested_value(
-            loaded_val, default_val, self.config_file_path.name, self.logger, path
-        )
 
     def load(self) -> None:
         """Load the configuration from the file."""
@@ -505,8 +457,12 @@ class SetConfig(set):
                         matched = False
                         for default_item in self.default:
                             if loaded_item == default_item:
-                                validated_item = self._validate_nested_value(
-                                    loaded_item, default_item, str(loaded_item)
+                                validated_item = _validate_nested_value(
+                                    loaded_item,
+                                    default_item,
+                                    self.config_file_path.name,
+                                    self.logger,
+                                    str(loaded_item),
                                 )
                                 validated_items.add(validated_item)
                                 matched = True

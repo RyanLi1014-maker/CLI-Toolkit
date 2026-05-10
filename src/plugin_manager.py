@@ -5,15 +5,18 @@ import importlib.util
 from logging import getLogger
 from pathlib import Path
 
+from rich.console import Console
+
 # Import modules
 from api import BasePlugin
 from src.exception import (
-    PluginAlreadyLoadedWarning,
     PluginDisabledError,
+    PluginLoadedError,
     PluginNotDisabledError,
     PluginNotFoundError,
 )
 from src.util.config import SetConfig
+from src.util.project_root import PROJECT_ROOT
 
 # Set up the base logger
 logger = getLogger("CLI-Toolkit")
@@ -53,20 +56,39 @@ class PluginManager:
             str, str
         ] = {}
 
-        # Initialize the plugin directory and disabled plugins
-        self.plugin_dir = plugin_dir  # Directory where plugins are stored
-        self.disabled_plugins = SetConfig(  # Set of disabled plugins
-            Path("CLI-Toolkit/disabled_plugins.json")
-        )
+        # Initialize the plugin directory
+        self.plugin_dir = PROJECT_ROOT / plugin_dir  # Path to the plugin directory
         self.plugin_dir.mkdir(  # Check if the plugin directory exists
             parents=True, exist_ok=True
         )
 
-    def load_plugin(self, plugin_name: str) -> None:
+        # Initialize the set of disabled plugins using a SetConfig instance
+        self.disabled_plugins = SetConfig(  # Set of disabled plugins
+            Path("CLI-Toolkit/disabled_plugins.json")
+        )
+        # Check if any disabled plugins don't exist
+        # Create a temporary set to avoid modifying the original during iteration
+        temp_disabled_plugins = self.disabled_plugins.copy()
+        for plugin_name in temp_disabled_plugins:
+            (  # Disable plugins that are in the disabled list but don't exist
+                self.disabled_plugins.remove(plugin_name)
+                if self.plugin_dir / f"{plugin_name}.py"
+                not in self.plugin_dir.iterdir()
+                else None
+            )
+        (  # Save the updated set of disabled plugins
+            self.disabled_plugins.save()
+            if temp_disabled_plugins != self.disabled_plugins
+            else None
+        )
+
+    def load_plugin(self, plugin_name: str, loaded_ok: bool = False):
         """Load a new plugin.
 
         Args:
             plugin_name (str): The name of a plugin to be loaded.
+            loaded_ok (bool, optional): Whether it's okay for the plugin
+                to already be loaded. Defaults to True.
 
         """
         self.logger.info(f"Loading plugin '{plugin_name}'.")
@@ -77,9 +99,9 @@ class PluginManager:
         if (  # Check if the plugin is already loaded
             plugin_name in self.plugin_instances
         ):
-            raise PluginAlreadyLoadedWarning(
-                f"Plugin '{plugin_name}' is already loaded."
-            )
+            self.logger.warning(f"Plugin '{plugin_name}' is already loaded.")
+            if not loaded_ok:
+                raise PluginLoadedError(f"Plugin '{plugin_name}' is already loaded.")
         if (  # Check if the plugin name is valid
             ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name
         ):
@@ -154,7 +176,7 @@ class PluginManager:
             self.plugin_instances[plugin_name] = plugin_instance
             self._plugin_commands[plugin_name] = registered_commands
 
-            # Log a message
+            # Log a message and return True
             self.logger.info(f"Loaded plugin '{plugin_name}'.")
 
         else:  # If the plugin file does not exist, raise an error
@@ -219,6 +241,9 @@ class PluginManager:
         if plugin_name in self.disabled_plugins:
             raise PluginDisabledError(f"Plugin '{plugin_name}' is already disabled.")
 
+        if self.plugin_dir / f"{plugin_name}.py" not in self.plugin_dir.iterdir():
+            raise PluginNotFoundError(f"Plugin '{plugin_name}' not found.")
+
         # Add the plugin to the set of disabled plugins to disable it
         self.disabled_plugins.add(plugin_name)
         self.disabled_plugins.save()
@@ -247,15 +272,28 @@ class PluginManager:
         # Remove the plugin from the set of disabled plugins to enable it
         self.disabled_plugins.remove(plugin_name)
         self.disabled_plugins.save()  # Save the updated set of disabled plugins
-        (  # Load the plugin if the configuration option is enabled
+
+        # Check if the plugin file exists before loading
+        if self.plugin_dir / f"{plugin_name}.py" not in self.plugin_dir.iterdir():
+            raise PluginNotFoundError(
+                f"Plugin '{plugin_name}' not found while loading. "
+                "But it was removed from the disabled list. "
+                "So it may have been deleted since the last time plugins were loaded."
+            )
+
+        # Load the plugin if the configuration specifies to load on enable
+        if self.master.config["plugin"]["load_on_enable"]:
             self.load_plugin(plugin_name)
-            if self.master.config["plugin"]["load_on_enable"]
-            else None
-        )
+
         self.logger.info(f"Enabled plugin '{plugin_name}'.")
 
-    def load_all_plugins(self) -> int:
+    def load_all_plugins(self, console: Console | None = None) -> int:
         """Load all plugins in the plugin directory.
+
+        Args:
+            console (Console | None, optional): A Rich Console instance for
+                printing warning messages. If None, no messages will be printed.
+                Defaults to None.
 
         Returns:
             int: The number of plugins loaded.
@@ -284,16 +322,11 @@ class PluginManager:
                 # Load the plugin
                 try:  # Try to load the plugin
                     self.load_plugin(plugin_name)
-                except Warning as w:  # If a warning occurs, log it as a warning
-                    self.logger.warning(f"Failed to load plugin '{plugin_name}': {w}")
-                    self.master.console.print(  # Log the warning message to the console
-                        f"Failed to load plugin '{plugin_name}': {w}", style="yellow"
-                    )
                 except Exception as e:  # If any other exception occurs, log an error
                     self.logger.error(f"Failed to load plugin '{plugin_name}': {e}")
-                    self.master.console.print(  # Log the error message to the console
-                        f"Failed to load plugin '{plugin_name}': {e}", style="red"
-                    )
+                    console.print(
+                        f"[red]Failed to load plugin '{plugin_name}': {e}[/red]"
+                    ) if console else None
                 else:  # If the plugin was loaded successfully, log an info
                     loaded_count += 1
 

@@ -202,7 +202,7 @@ class Plugin(BasePlugin):
 
 ## Console Output
 
-CLI-Toolkit uses the Rich library for formatted console output. Access it via `self.console.print()`:
+CLI-Toolkit uses [Rich](https://github.com/Textualize/rich) for formatted console output in plugins. Access console output via `self.console.print()`:
 
 ### Basic Styling
 
@@ -1096,6 +1096,7 @@ class Plugin(BasePlugin):
 - Use relative imports from project root
 - Available modules: `api`, `util.config`
 - Don't import from other plugins directly
+- Core dependencies (`rich`) are installed with the application; plugin-specific packages belong in the `package/` directory (see the README)
 
 ## Getting Help
 
