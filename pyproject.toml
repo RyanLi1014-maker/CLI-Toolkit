@@ -1,6 +1,6 @@
 [project]
 name = "CLI-Toolkit"
-version = "1.0.0"
+version = "1.0.1"
 description = "A compact and powerful command-line toolkit"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -10,12 +10,15 @@ dependencies = [
 
 [tool.ruff.lint]
 select = [
+    "ARG",
     "B",
     "C4",
     "D",
     "E",
     "F",
+    "G",
     "I",
+    "LOG",
     "PTH",
     "SIM",
     "UP",

@@ -198,6 +198,10 @@ class TestCLIToolkitApp:
         app.cmd_config(["set", "plugin", "nonexistent", "value"])
         assert app.config["plugin"]["load_on_start"] == before
 
+        # Test setting a value of the wrong type (should not change config)
+        app.cmd_config(["set", "plugin", "load_on_start", "not_a_boolean"])
+        assert app.config["plugin"]["load_on_start"] == before
+
         # Test unknown sub-command
         app.cmd_config(["unknown"])  # Should print error without raising
 

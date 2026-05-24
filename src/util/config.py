@@ -30,14 +30,15 @@ def _validate_nested_value(
         The validated value (either loaded or default if invalid).
 
     """
-    # Check type match
-    if not isinstance(loaded_val, type(default_val)):
+    # Check type match (exact type, not isinstance, to prevent
+    # bool (subclass of int) from passing int validation)
+    if type(loaded_val) is not type(default_val):
         logger_obj.warning(
-            f"File '{config_file_name}' "
-            f"value at {path or 'root'} has type "
-            f"{type(loaded_val).__name__}, "
-            f"but expected {type(default_val).__name__}. "
-            "Using default value."
+            "File '%s' value at %s has type %s, but expected %s. Using default value.",
+            config_file_name,
+            path or "root",
+            type(loaded_val).__name__,
+            type(default_val).__name__,
         )
         return default_val
 
@@ -48,9 +49,10 @@ def _validate_nested_value(
         for key in default_val:
             if key not in loaded_val:
                 logger_obj.warning(
-                    f"File '{config_file_name}' "
-                    f"missing key '{key}' at {path or 'root'}. "
-                    "Using default value."
+                    "File '%s' missing key '%s' at %s. Using default value.",
+                    config_file_name,
+                    key,
+                    path or "root",
                 )
                 result[key] = default_val[key]
             else:
@@ -130,9 +132,9 @@ class ListConfig(list):
 
         # Log the initialization of the configuration
         self.logger.info(
-            f"Configuration initialized with file: '{self.config_file_path}'"
+            "Configuration initialized with file: '%s'", self.config_file_path
         )
-        self.logger.debug(f"Default configuration values: {self.default}")
+        self.logger.debug("Default configuration values: %s", self.default)
 
     def load(self) -> None:
         """Load the configuration from the file."""
@@ -145,9 +147,9 @@ class ListConfig(list):
                 # If the content is not valid json, return the default configuration
                 except json.JSONDecodeError:
                     self.logger.warning(
-                        f"File '{self.config_file_path.name}' "
-                        "is not a valid json file. "
-                        "Returning default configuration."
+                        "File '%s' is not a valid json file. "
+                        "Returning default configuration.",
+                        self.config_file_path.name,
                     )
                     content = self.default
 
@@ -174,27 +176,29 @@ class ListConfig(list):
                     # Check structure validation if enabled
                     if self.validate_structure and len(content) != len(self.default):
                         self.logger.warning(
-                            f"File '{self.config_file_path.name}' "
-                            f"has {len(content)} items, "
-                            f"but default has {len(self.default)} items. "
-                            "Using validated values for matching items."
+                            "File '%s' has %d items, but default has %d items. "
+                            "Using validated values for matching items.",
+                            self.config_file_path.name,
+                            len(content),
+                            len(self.default),
                         )
 
                     self.clear()
                     self.extend(validated_content)
                     self.save()
                     self.logger.info(
-                        f"Configuration loaded successfully from file: "
-                        f"'{self.config_file_path}'"
+                        "Configuration loaded successfully from file: '%s'",
+                        self.config_file_path,
                     )
                     self.logger.debug(
-                        f"Loaded configuration values: {validated_content}"
+                        "Loaded configuration values: %s", validated_content
                     )
 
                 else:  # If the content is not a list, return the default configuration
                     self.logger.warning(
-                        f"File '{self.config_file_path.name}' does not contain a list. "
-                        "Returning default configuration."
+                        "File '%s' does not contain a list. "
+                        "Returning default configuration.",
+                        self.config_file_path.name,
                     )
                     self.clear()  # Clear the current configuration
                     self.extend(self.default)
@@ -202,15 +206,16 @@ class ListConfig(list):
 
         else:  # Return the default configuration if the file does not exist
             self.logger.warning(
-                f"File '{self.config_file_path.name}' does not exist. "
-                "Returning default configuration and saving it to the file."
+                "File '%s' does not exist. "
+                "Returning default configuration and saving it to the file.",
+                self.config_file_path.name,
             )
             self.extend(self.default)
             self.save()  # Save the default configuration to the file
 
     def save(self) -> None:
         """Save the configuration to the file."""
-        self.logger.info(f"Saving configuration to file: '{self.config_file_path}'")
+        self.logger.info("Saving configuration to file: '%s'", self.config_file_path)
 
         # Check if the configuration directory exists
         self.config_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -220,7 +225,7 @@ class ListConfig(list):
             json.dump(list(self), f, indent=4)
 
         self.logger.info(
-            f"Configuration saved successfully to file: '{self.config_file_path}'"
+            "Configuration saved successfully to file: '%s'", self.config_file_path
         )
 
 
@@ -270,13 +275,13 @@ class DictConfig(dict):
 
         # Log the initialization of the configuration
         self.logger.info(
-            f"Configuration initialized with file: '{self.config_file_path}'"
+            "Configuration initialized with file: '%s'", self.config_file_path
         )
-        self.logger.debug(f"Default configuration values: {self.default}")
+        self.logger.debug("Default configuration values: %s", self.default)
 
     def load(self) -> None:
         """Load the configuration from the file."""
-        self.logger.info(f"Loading configuration from file: '{self.config_file_path}'")
+        self.logger.info("Loading configuration from file: '%s'", self.config_file_path)
         if self.config_file_path.exists():  # Check if the configuration file exists
             with self.config_file_path.open("r", encoding="utf-8") as f:
                 # Try to load the content of the file as json
@@ -286,9 +291,9 @@ class DictConfig(dict):
                 # If the content is not valid json, return the default configuration
                 except json.JSONDecodeError:
                     self.logger.warning(
-                        f"File '{self.config_file_path.name}' "
-                        "is not a valid json file. "
-                        "Returning default configuration."
+                        "File '%s' is not a valid json file. "
+                        "Returning default configuration.",
+                        self.config_file_path.name,
                     )
                     content = self.default
 
@@ -308,9 +313,9 @@ class DictConfig(dict):
                             )
                         else:
                             self.logger.warning(
-                                f"File '{self.config_file_path.name}' "
-                                f"missing key '{key}'. "
-                                "Using default value."
+                                "File '%s' missing key '%s'. Using default value.",
+                                self.config_file_path.name,
+                                key,
                             )
                             validated_content[key] = self.default[key]
 
@@ -326,37 +331,39 @@ class DictConfig(dict):
                         self.default.keys()
                     ):
                         self.logger.warning(
-                            f"File '{self.config_file_path.name}' "
-                            f"has keys {set(content.keys())}, "
-                            f"but default has keys {set(self.default.keys())}. "
-                            "Using validated values for matching keys."
+                            "File '%s' has keys %s, but default has keys %s. "
+                            "Using validated values for matching keys.",
+                            self.config_file_path.name,
+                            set(content.keys()),
+                            set(self.default.keys()),
                         )
 
                     self.clear()
                     self.update(validated_content)
                     self.save()
                     self.logger.info(
-                        f"Configuration loaded successfully from file: "
-                        f"'{self.config_file_path}'"
+                        "Configuration loaded successfully from file: '%s'",
+                        self.config_file_path,
                     )
                     self.logger.debug(
-                        f"Loaded configuration values: {validated_content}"
+                        "Loaded configuration values: %s", validated_content
                     )
 
                 # If the content is not a dictionary, return the default configuration
                 else:
                     self.logger.warning(
-                        f"File '{self.config_file_path.name}' "
-                        "does not contain a dictionary. "
-                        "Returning default configuration."
+                        "File '%s' does not contain a dictionary. "
+                        "Returning default configuration.",
+                        self.config_file_path.name,
                     )
                     self.clear()  # Clear the current configuration
                     self.update(self.default)
                     self.save()  # Save the default configuration to the file
         else:  # Return the default configuration if the file does not exist
             self.logger.warning(
-                f"File '{self.config_file_path.name}' does not exist. "
-                "Returning default configuration and saving it to the file."
+                "File '%s' does not exist. "
+                "Returning default configuration and saving it to the file.",
+                self.config_file_path.name,
             )
             self.update(  # Update the configuration with the default values
                 self.default
@@ -365,7 +372,7 @@ class DictConfig(dict):
 
     def save(self) -> None:
         """Save the configuration to the file."""
-        self.logger.info(f"Saving configuration to file: '{self.config_file_path}'")
+        self.logger.info("Saving configuration to file: '%s'", self.config_file_path)
 
         # Check if the configuration directory exists
         self.config_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -375,7 +382,7 @@ class DictConfig(dict):
             json.dump(self, f, indent=4)
 
         self.logger.info(
-            f"Configuration saved successfully to file: '{self.config_file_path}'"
+            "Configuration saved successfully to file: '%s'", self.config_file_path
         )
 
 
@@ -425,13 +432,13 @@ class SetConfig(set):
 
         # Log the initialization of the configuration
         self.logger.info(
-            f"Configuration initialized with file: '{self.config_file_path}'"
+            "Configuration initialized with file: '%s'", self.config_file_path
         )
-        self.logger.debug(f"Default configuration values: {self.default}")
+        self.logger.debug("Default configuration values: %s", self.default)
 
     def load(self) -> None:
         """Load the configuration from the file."""
-        self.logger.info(f"Loading configuration from file: '{self.config_file_path}'")
+        self.logger.info("Loading configuration from file: '%s'", self.config_file_path)
         if self.config_file_path.exists():  # Check if the configuration file exists
             with self.config_file_path.open("r", encoding="utf-8") as f:
                 # Try to load the content of the file as json
@@ -441,9 +448,9 @@ class SetConfig(set):
                 # If the content is not valid json, return the default configuration
                 except json.JSONDecodeError:
                     self.logger.warning(
-                        f"File '{self.config_file_path.name}' "
-                        "is not a valid json file. "
-                        "Returning default configuration."
+                        "File '%s' is not a valid json file. "
+                        "Returning default configuration.",
+                        self.config_file_path.name,
                     )
                     content = list(self.default)
 
@@ -481,42 +488,46 @@ class SetConfig(set):
                     # Check structure validation if enabled
                     if self.validate_structure and validated_items != self.default:
                         self.logger.warning(
-                            f"File '{self.config_file_path.name}' "
-                            f"has {len(validated_items)} unique items, "
-                            f"but default has {len(self.default)} "
-                            "unique items. "
-                            "Using validated values."
+                            "File '%s' has %d unique items, but default has %d "
+                            "unique items. Using validated values.",
+                            self.config_file_path.name,
+                            len(validated_items),
+                            len(self.default),
                         )
 
                     self.clear()
                     self.update(validated_items)
                     self.save()
                     self.logger.info(
-                        f"Configuration loaded successfully from file: "
-                        f"'{self.config_file_path}'"
+                        "Configuration loaded successfully from file: '%s'",
+                        self.config_file_path,
                     )
-                    self.logger.debug(f"Loaded configuration values: {validated_items}")
+                    self.logger.debug(
+                        "Loaded configuration values: %s", validated_items
+                    )
 
                 # If the content is not a list, return the default configuration
                 else:
                     self.logger.warning(
-                        f"File '{self.config_file_path.name}' does not contain a list. "
-                        "Returning default configuration."
+                        "File '%s' does not contain a list. "
+                        "Returning default configuration.",
+                        self.config_file_path.name,
                     )
                     self.clear()  # Clear the current configuration
                     self.update(self.default)
                     self.save()  # Save the default configuration to the file
         else:  # Return the default configuration if the file does not exist
             self.logger.warning(
-                f"File '{self.config_file_path.name}' does not exist. "
-                "Returning default configuration and saving it to the file."
+                "File '%s' does not exist. "
+                "Returning default configuration and saving it to the file.",
+                self.config_file_path.name,
             )
             self.update(self.default)
             self.save()  # Save the default configuration to the file
 
     def save(self) -> None:
         """Save the configuration to the file."""
-        self.logger.info(f"Saving configuration to file: '{self.config_file_path}'")
+        self.logger.info("Saving configuration to file: '%s'", self.config_file_path)
 
         # Check if the configuration directory exists
         self.config_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -526,5 +537,5 @@ class SetConfig(set):
             json.dump(sorted(self), f, indent=4)
 
         self.logger.info(
-            f"Configuration saved successfully to file: '{self.config_file_path}'"
+            "Configuration saved successfully to file: '%s'", self.config_file_path
         )

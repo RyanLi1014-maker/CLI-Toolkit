@@ -20,7 +20,7 @@ PYTHON_VERSION = (
     sys.version_info.minor,
     sys.version_info.micro,
 )
-CLIT_VERSION = (1, 0, 0)
+CLIT_VERSION = (1, 0, 1)
 CLIT_LOGO = r"""
          ________      ___           ___
         |\   ____\    |\  \         |\  \
@@ -74,7 +74,7 @@ class CLIToolkitApp:
             auto_load=True,
             validate_structure=True,
         )
-        self.logger.debug(f"Configuration loaded: {self.config}")
+        self.logger.debug("Configuration loaded: %s", self.config)
 
         # Initialize the plugin manager
         self.plugin_manager = PluginManager(self)
@@ -84,7 +84,7 @@ class CLIToolkitApp:
 
         # Initialize aliases
         self.aliases = DictConfig(config_path=Path("CLI-Toolkit/aliases.json"))
-        self.logger.debug(f"Aliases loaded: {self.aliases}")
+        self.logger.debug("Aliases loaded: %s", self.aliases)
 
     def _dispatch(self, input_cmd: str) -> None:
         """Dispatch the command to the appropriate handler.
@@ -93,7 +93,7 @@ class CLIToolkitApp:
             input_cmd (str): The raw input command entered by the user.
 
         """
-        self.logger.info(f"Dispatching command: '{input_cmd}'")
+        self.logger.info("Dispatching command: '%s'", input_cmd)
 
         # Parse the command using shell-like syntax
         try:
@@ -115,13 +115,12 @@ class CLIToolkitApp:
 
         # If the method exists and is callable, call it with the arguments
         if callable(method := getattr(self, f"cmd_{cmd}", None)):
-            self.logger.info(f"Calling method: {method}")
+            self.logger.info("Calling method: %s", method)
             try:
                 method(args)
             except Exception as e:  # Catch any exceptions raised by the command method
-                self.logger.error(
-                    f"An unexpected error occurred while executing command '{cmd}'",
-                    exc_info=True,
+                self.logger.exception(
+                    "An unexpected error occurred while executing command '%s'", cmd
                 )
                 self.console.print(
                     f"An unexpected error occurred: {e}",
@@ -131,7 +130,7 @@ class CLIToolkitApp:
         # If the command is an alias, resolve it and call the corresponding method
         elif cmd in self.aliases:
             alias_cmd = self.aliases[cmd]
-            self.logger.info(f"Resolving alias '{cmd}' to command '{alias_cmd}'")
+            self.logger.info("Resolving alias '%s' to command '%s'", cmd, alias_cmd)
             self._dispatch(  # Recursively dispatch the resolved command
                 f"{alias_cmd} " + " ".join(args)
             )
@@ -181,13 +180,13 @@ class CLIToolkitApp:
         """
         # Handle the 'alias' command with arguments
         if args:
-            self.logger.debug(f"Handling 'alias' command with arguments: {args}")
+            self.logger.debug("Handling 'alias' command with arguments: %s", args)
 
             # Get the sub-command and its arguments
             sub_command = args[0]
             sub_args = args[1:]
-            self.logger.debug(f"Sub-command: '{sub_command}'")
-            self.logger.debug(f"Sub-command arguments: '{sub_args}'")
+            self.logger.debug("Sub-command: '%s'", sub_command)
+            self.logger.debug("Sub-command arguments: '%s'", sub_args)
 
             # Match the sub-command
             match sub_command:
@@ -200,8 +199,10 @@ class CLIToolkitApp:
                             cmd.split(" ")[0] for cmd in self.aliases.values()
                         ]:
                             self.logger.warning(
-                                f"Cannot create alias '{alias_name}' for "
-                                f"command '{command}' because it is already an alias."
+                                "Cannot create alias '%s' for command '%s' "
+                                "because it is already an alias.",
+                                alias_name,
+                                command,
                             )
                             self.console.print(
                                 f"Cannot create alias '{alias_name}' for "
@@ -213,7 +214,9 @@ class CLIToolkitApp:
                         self.aliases[alias_name] = command
                         self.aliases.save()  # Save the updated configuration
                         self.logger.info(
-                            f"Alias '{alias_name}' created for command '{command}'"
+                            "Alias '%s' created for command '%s'",
+                            alias_name,
+                            command,
                         )
                         self.console.print(
                             f"Alias '{alias_name}' created for command '{command}'.",
@@ -231,12 +234,12 @@ class CLIToolkitApp:
                         if alias_name in self.aliases:
                             del self.aliases[alias_name]
                             self.aliases.save()  # Save the updated configuration
-                            self.logger.info(f"Alias '{alias_name}' deleted.")
+                            self.logger.info("Alias '%s' deleted.", alias_name)
                             self.console.print(
                                 f"Alias '{alias_name}' deleted.", style="green"
                             )
                         else:
-                            self.logger.warning(f"Alias '{alias_name}' not found.")
+                            self.logger.warning("Alias '%s' not found.", alias_name)
                             self.console.print(
                                 f"Alias '{alias_name}' not found.", style="red"
                             )
@@ -310,8 +313,8 @@ class CLIToolkitApp:
             # Get the sub-command and its arguments
             sub_command = args[0]
             sub_args = args[1:]
-            self.logger.debug(f"Sub-command: '{sub_command}'")
-            self.logger.debug(f"Sub-arguments: '{sub_args}'")
+            self.logger.debug("Sub-command: '%s'", sub_command)
+            self.logger.debug("Sub-arguments: '%s'", sub_args)
 
             # Match the sub-command
             match sub_command:
@@ -320,32 +323,70 @@ class CLIToolkitApp:
                         # Extract the category, key, and value from the arguments
                         category = sub_args[0].lower()
                         key = sub_args[1].lower()
-                        value = sub_args[2].lower()
+                        value = sub_args[2]
                         # Convert the value to a boolean if necessary
                         match value.lower():
                             case "true":
                                 value = True
                             case "false":
                                 value = False
-                        # Check if the category and key exist
-                        if category in self.config and key in self.config[category]:
-                            self.config[category][key] = value
-                            self.config.save()
-                            self.logger.info(
-                                f"Configuration value set: {category}.{key} = {value}"
+                        # Check if the category exists
+                        if category not in self.config:
+                            self.logger.warning(
+                                "Failed to set configuration value. "
+                                "Category '%s' does not exist.",
+                                category,
                             )
                             self.console.print(
-                                f"[green]Configuration value set:[/green] "
-                                f"[blue]{category}.{key}[/blue]: {value}"
-                            )
-                        else:  # If the category or key does not exist
-                            self.logger.info(
-                                f"Category '{category}' or key '{key}' not found."
-                            )
-                            self.console.print(
-                                f"Category '{category}' or key '{key}' not found.",
+                                "Failed to set configuration value. "
+                                f"Category '{category}' does not exist.",
                                 style="red",
                             )
+                            return
+                        # Check if the key exists
+                        if key not in self.config[category]:
+                            self.logger.warning(
+                                "Failed to set configuration value. "
+                                "Key '%s' does not exist in category '%s'.",
+                                key,
+                                category,
+                            )
+                            self.console.print(
+                                "Failed to set configuration value. "
+                                f"Key '{key}' does not exist in category '{category}'.",
+                                style="red",
+                            )
+                            return
+                        # Check if the value is of the correct type
+                        if type(value) is not type(self.config[category][key]):
+                            self.logger.warning(
+                                "Failed to set configuration value. "
+                                "Value '%s' is not of the correct type "
+                                "for key '%s' in category '%s'.",
+                                value,
+                                key,
+                                category,
+                            )
+                            self.console.print(
+                                "Failed to set configuration value. "
+                                f"Value '{value}' is not of the correct type "
+                                f"for key '{key}' in category '{category}'.",
+                                style="red",
+                            )
+                            return
+                        # Set the configuration value
+                        self.config[category][key] = value
+                        self.config.save()
+                        self.logger.info(
+                            "Configuration value set: %s.%s = %s",
+                            category,
+                            key,
+                            value,
+                        )
+                        self.console.print(
+                            "[green]Configuration value set:[/green] "
+                            f"[blue]{category}.{key}[/blue]: {value}"
+                        )
                     else:  # If the required arguments are not provided
                         self.logger.info("Invalid config usage.")
                         self.console.print(
@@ -368,8 +409,10 @@ class CLIToolkitApp:
                                     self.config[category][key] = default_value
                                     self.config.save()
                                     self.logger.info(
-                                        f"Configuration value reset: "
-                                        f"{category}.{key} = {default_value}"
+                                        "Configuration value reset: %s.%s = %s",
+                                        category,
+                                        key,
+                                        default_value,
                                     )
                                     self.console.print(
                                         f"[green]Configuration value reset:[/green] "
@@ -383,8 +426,10 @@ class CLIToolkitApp:
                                     )
                             else:  # If there is no default value
                                 self.logger.info(
-                                    f"No default value found for "
-                                    f"category '{category}' and key '{key}'."
+                                    "No default value found for "
+                                    "category '%s' and key '%s'.",
+                                    category,
+                                    key,
                                 )
                                 self.console.print(
                                     f"No default value found for "
@@ -393,7 +438,9 @@ class CLIToolkitApp:
                                 )
                         else:  # If the category or key does not exist
                             self.logger.info(
-                                f"Category '{category}' or key '{key}' not found."
+                                "Category '%s' or key '%s' not found.",
+                                category,
+                                key,
                             )
                             self.console.print(
                                 f"Category '{category}' or key '{key}' not found.",
@@ -450,7 +497,7 @@ class CLIToolkitApp:
                             style="red",
                         )
                 case unknown_command:
-                    self.logger.warning(f"Unknown sub-command: '{unknown_command}'")
+                    self.logger.warning("Unknown sub-command: '%s'", unknown_command)
                     self.console.print(
                         f"Unknown sub-command: '{unknown_command}'", style="red"
                     )
@@ -498,7 +545,7 @@ class CLIToolkitApp:
         if args:
             # Get the command name
             cmd_name = args[0]  # Get the command name from the arguments
-            self.logger.debug(f"Showing help for command '{cmd_name}'")
+            self.logger.debug("Showing help for command '%s'", cmd_name)
 
             # If the method exists and is callable, show its docstring as detailed help
             if callable(method_attr := getattr(self, f"cmd_{cmd_name}", None)):
@@ -516,7 +563,7 @@ class CLIToolkitApp:
                         f"Command '{cmd_name}' has no description available."
                     )
             elif cmd_name in self.aliases:  # If the command is an alias
-                self.logger.debug(f"Showing help for alias '{cmd_name}'")
+                self.logger.debug("Showing help for alias '%s'", cmd_name)
                 self.console.print(
                     f"Command '{cmd_name}' is an alias for '{self.aliases[cmd_name]}'."
                 )
@@ -542,7 +589,7 @@ class CLIToolkitApp:
                 if callable(method_attr := getattr(self, method_name, None)):
                     if method_doc := method_attr.__doc__:
                         self.logger.debug(
-                            f"Method '{method_name}' has docstring. Adding to list."
+                            "Method '%s' has docstring. Adding to list.", method_name
                         )
                         command_list.append(
                             f"[blue]{method_name[4:]}[/blue]: "
@@ -550,8 +597,9 @@ class CLIToolkitApp:
                         )
                     else:  # If the method has no docstring, provide a default message
                         self.logger.debug(
-                            f"Method '{method_name}' has no docstring. "
-                            "Adding default message to list."
+                            "Method '%s' has no docstring. "
+                            "Adding default message to list.",
+                            method_name,
                         )
                         command_list.append(
                             f"[blue]{method_name[4:]}[/blue]: No description available."
@@ -603,8 +651,8 @@ class CLIToolkitApp:
             # Get the sub-command and its arguments
             sub_command = args[0]
             sub_args = args[1:]
-            self.logger.debug(f"Sub-command: '{sub_command}'")
-            self.logger.debug(f"Sub-command arguments: '{sub_args}'")
+            self.logger.debug("Sub-command: '%s'", sub_command)
+            self.logger.debug("Sub-command arguments: '%s'", sub_args)
 
             # Match the sub-command
             match sub_command:
@@ -614,7 +662,7 @@ class CLIToolkitApp:
                             load_state = self.plugin_manager.load_plugin(sub_args[0])
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
-                                f"Failed to load plugin '{sub_args[0]}': {e}"
+                                "Failed to load plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to load plugin '{sub_args[0]}': {e}",
@@ -641,7 +689,7 @@ class CLIToolkitApp:
                             self.plugin_manager.unload_plugin(sub_args[0])
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
-                                f"Failed to unload plugin '{sub_args[0]}': {e}"
+                                "Failed to unload plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to unload plugin '{sub_args[0]}': {e}",
@@ -664,7 +712,7 @@ class CLIToolkitApp:
                             self.plugin_manager.reload_plugin(sub_args[0])
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
-                                f"Failed to reload plugin '{sub_args[0]}': {e}"
+                                "Failed to reload plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to reload plugin '{sub_args[0]}': {e}",
@@ -687,7 +735,7 @@ class CLIToolkitApp:
                             self.plugin_manager.disable_plugin(sub_args[0])
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
-                                f"Failed to disable plugin '{sub_args[0]}': {e}"
+                                "Failed to disable plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to disable plugin '{sub_args[0]}': {e}",
@@ -710,7 +758,7 @@ class CLIToolkitApp:
                             self.plugin_manager.enable_plugin(sub_args[0])
                         except Exception as e:  # Catch any exceptions
                             self.logger.error(
-                                f"Failed to enable plugin '{sub_args[0]}': {e}"
+                                "Failed to enable plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to enable plugin '{sub_args[0]}': {e}",
@@ -730,7 +778,7 @@ class CLIToolkitApp:
                 case "help" | "h":
                     if len(sub_args) == 1:  # Check if the arguments are valid
                         plugin_name = sub_args[0]
-                        self.logger.debug(f"Showing help for plugin '{plugin_name}'")
+                        self.logger.debug("Showing help for plugin '%s'", plugin_name)
                         if plugin_instance := self.plugin_manager.plugin_instances.get(
                             plugin_name
                         ):
@@ -820,15 +868,15 @@ class CLIToolkitApp:
             ) in self.plugin_manager.plugin_instances.items():
                 if plugin_doc := plugin_instance.__doc__:
                     self.logger.debug(
-                        f"Plugin '{plugin_name}' has docstring. Adding to list."
+                        "Plugin '%s' has docstring. Adding to list.", plugin_name
                     )
                     loaded_plugin.append(
                         f"[blue]{plugin_name}[/blue]: {plugin_doc.splitlines()[0]}"
                     )
                 else:  # If the plugin has no docstring, show a default message
                     self.logger.debug(
-                        f"Plugin '{plugin_name}' has no docstring. "
-                        "Adding default message to list."
+                        "Plugin '%s' has no docstring. Adding default message to list.",
+                        plugin_name,
                     )
                     loaded_plugin.append(
                         f"[blue]{plugin_name}[/blue]: No description available."
