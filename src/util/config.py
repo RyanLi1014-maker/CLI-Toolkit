@@ -1,13 +1,13 @@
 """Configuration utilities."""
 
-import json  # json file handling
-import logging  # Logging module
-from pathlib import Path  # file path handling
+import json
+import logging
+from pathlib import Path
 
-from src.util.project_root import PROJECT_ROOT  # Get the project root directory
+from src.util.project_root import PROJECT_ROOT
 
 # Set up logging
-logger = logging.getLogger("Config")
+logger = logging.getLogger("clit.config")
 
 CONFIG_DIRECTORY = PROJECT_ROOT / "config"
 

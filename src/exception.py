@@ -1,12 +1,12 @@
 """Exceptions collection for CLI-Toolkit."""
 
 
-# CLI-Toolkit exceptions========================================================
+# CLI-Toolkit exceptions
 class CLITError(Exception):
     """Custom exception class for CLI-Toolkit."""
 
 
-# Plugin errors==================================================================
+# Plugin errors
 class PluginError(CLITError):
     """Custom error class for plugin-related errors."""
 

@@ -1,18 +1,21 @@
 """CLI-Toolkit Application."""
 
 # Import libraries
-import logging  # Logging module
-import shlex  # Shell-like syntax parsing
-import sys  # System
-from pathlib import Path  # Path
+import logging
+import re
+import shlex
+import subprocess
+import sys
+import time
+from pathlib import Path
 
-from rich.console import Console  # Console
-from rich.panel import Panel  # Panel
-from rich.prompt import Confirm  # Confirm prompt
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm
 
 # Import modules
-from src.plugin_manager import PluginManager  # Plugin manager module
-from src.util.config import DictConfig  # Configuration module
+from src.plugin_manager import PluginManager
+from src.util.config import DictConfig
 
 # Define constants
 PYTHON_VERSION = (
@@ -20,7 +23,7 @@ PYTHON_VERSION = (
     sys.version_info.minor,
     sys.version_info.micro,
 )
-CLIT_VERSION = (1, 0, 1)
+CLIT_VERSION = (1, 1, 0)
 CLIT_LOGO = r"""
          ________      ___           ___
         |\   ____\    |\  \         |\  \
@@ -40,32 +43,25 @@ CLIT_LOGO = r"""
 """  # noqa: E501
 
 # Define variables
-logger = logging.getLogger("CLI-Toolkit")
+logger = logging.getLogger("clit")
 
 
 class CLIToolkitApp:
     """Command-line interface class."""
 
-    VERSION = CLIT_VERSION  # Application version
+    VERSION = CLIT_VERSION
 
     def __init__(self) -> None:
         """Initialize the CLI-Toolkit application."""
-        # Initialize the logger
         self.logger = logger.getChild("App")
         self.logger.debug("Logger initialized.")
 
-        # Initialize the console
         self.console = Console()
-        self.console.print(  # Print the logo when the application starts
-            CLIT_LOGO, highlight=False
-        )
+        self.console.print(CLIT_LOGO, highlight=False)
 
-        # Initialize the configuration
         self.config = DictConfig(
-            config_path=Path(  # Path to the configuration file
-                "CLI-Toolkit/config.json"
-            ),
-            default_config={  # Default configuration values
+            config_path=Path("CLI-Toolkit/config.json"),
+            default_config={
                 "plugin": {
                     "load_on_enable": True,
                     "load_on_start": True,
@@ -76,15 +72,16 @@ class CLIToolkitApp:
         )
         self.logger.debug("Configuration loaded: %s", self.config)
 
-        # Initialize the plugin manager
         self.plugin_manager = PluginManager(self)
-        if self.config["plugin"]["load_on_start"]:  # Load all plugins
+        if self.config["plugin"]["load_on_start"]:
             self.plugin_manager.load_all_plugins(self.console)
         self.logger.debug("Plugin manager initialized.")
 
-        # Initialize aliases
         self.aliases = DictConfig(config_path=Path("CLI-Toolkit/aliases.json"))
         self.logger.debug("Aliases loaded: %s", self.aliases)
+
+        # Track the last Ctrl+C key press timestamp for double-press exit
+        self._last_ctrl_c_time = 0.0
 
     def _dispatch(self, input_cmd: str) -> None:
         """Dispatch the command to the appropriate handler.
@@ -95,71 +92,97 @@ class CLIToolkitApp:
         """
         self.logger.info("Dispatching command: '%s'", input_cmd)
 
-        # Parse the command using shell-like syntax
         try:
-            parsed_input = shlex.split(
-                input_cmd
-            )  # Parse the command using shell-like syntax
-        except ValueError as e:  # Handle parsing errors
+            parsed_input = shlex.split(input_cmd)
+        except ValueError as e:
             self.console.print(
-                f"[red]Error parsing command: {e}.[/red] "
+                f"[bold red]Error parsing command: {e}.[/bold red] "
                 "Please check your command syntax and try again."
             )
             return
 
-        # Get the command name
         cmd = parsed_input[0] if parsed_input else ""
-
-        # Get the command arguments
         args = parsed_input[1:] if len(parsed_input) > 1 else []
+
+        # Replace ${...} with the corresponding variable
+        temp_args = args.copy()
+        args.clear()
+        for arg in temp_args:
+            if matched := re.match(r"^\${(.+)}$", arg):
+                match matched.group(1):
+                    case "cwd":
+                        args.append(str(Path.cwd().resolve()))
+                    case unmatched:
+                        args.append(unmatched)
+            else:
+                args.append(arg)
 
         # If the method exists and is callable, call it with the arguments
         if callable(method := getattr(self, f"cmd_{cmd}", None)):
             self.logger.info("Calling method: %s", method)
             try:
                 method(args)
-            except Exception as e:  # Catch any exceptions raised by the command method
+            except KeyboardInterrupt:
+                self.console.print()
+                self.logger.warning("Command '%s' interrupted by user.", cmd)
+                self.console.print(
+                    "[bold yellow]Command interrupted. "
+                    "Returning to prompt.[/bold yellow]"
+                )
+            except Exception as e:
                 self.logger.exception(
                     "An unexpected error occurred while executing command '%s'", cmd
                 )
                 self.console.print(
                     f"An unexpected error occurred: {e}",
-                    style="red",
+                    style="bold red",
                 )
 
         # If the command is an alias, resolve it and call the corresponding method
         elif cmd in self.aliases:
             alias_cmd = self.aliases[cmd]
             self.logger.info("Resolving alias '%s' to command '%s'", cmd, alias_cmd)
-            self._dispatch(  # Recursively dispatch the resolved command
-                f"{alias_cmd} " + " ".join(args)
-            )
+            self._dispatch(f"{alias_cmd} " + " ".join(args))
 
         # If the command is not recognized, call the default handler
         else:
-            if cmd:  # If the command is not blank, show it as an unknown command
+            if cmd:
                 self.console.print(
                     f"Unknown command: '{cmd}'. Please enter an existing command.",
-                    style="red",
+                    style="bold red",
                 )
 
     def mainloop(self) -> None:
         """Start the command loop."""
         self.console.rule()
-        self.console.print(  # Print the welcome message
+        self.console.print(
             "Welcome to [bold yellow]CLI-Toolkit[/bold yellow]!",
             "Type 'help' for a list of available commands.",
         )
-        # Start the command loop
         while True:
             try:
                 command = self.console.input("[bold purple]CLI-Toolkit>[/bold purple] ")
-                self._dispatch(command)  # Dispatch the command
-            except KeyboardInterrupt, EOFError:  # Handle Ctrl+C and Ctrl+D gracefully
-                self.console.print()  # Print a newline
-                self.logger.warning("Received interrupt signal.")
+                self._dispatch(command)
+            except KeyboardInterrupt:
+                self.console.print()
+                current_time = time.time()
+                # Exit on second Ctrl+C within 2 seconds to prevent accidental exits
+                if current_time - self._last_ctrl_c_time < 2.0:
+                    self.logger.warning("Received second Ctrl+C press. Exiting.")
+                    self.console.print("Goodbye!")
+                    sys.exit(0)
+                else:
+                    self._last_ctrl_c_time = current_time
+                    self.logger.warning("Received first Ctrl+C press.")
+                    self.console.print(
+                        "[bold yellow]Press Ctrl+C again "
+                        "within 2 seconds to exit.[/bold yellow]"
+                    )
+            except EOFError:
+                self.console.print()
+                self.logger.warning("Received EOF signal. Exiting.")
                 self.console.print("Goodbye!")
-                sys.exit(0)  # Exit the application with code 0 on Ctrl+C
+                sys.exit(0)
 
     def cmd_alias(self, args: list[str]):  # noqa: D417
         """Create a command alias.
@@ -178,23 +201,15 @@ class CLIToolkitApp:
             alias_name: The name of the alias to create or delete.
 
         """
-        # Handle the 'alias' command with arguments
         if args:
             self.logger.debug("Handling 'alias' command with arguments: %s", args)
-
-            # Get the sub-command and its arguments
             sub_command = args[0]
             sub_args = args[1:]
-            self.logger.debug("Sub-command: '%s'", sub_command)
-            self.logger.debug("Sub-command arguments: '%s'", sub_args)
 
-            # Match the sub-command
             match sub_command:
                 case "create" | "c":
-                    if len(sub_args) == 2:  # Check if the required args are provided
-                        # Extract the alias name and command from the sub-arguments
+                    if len(sub_args) == 2:
                         alias_name, command = sub_args
-                        # Check if the command is already an alias
                         if command in self.aliases or alias_name in [
                             cmd.split(" ")[0] for cmd in self.aliases.values()
                         ]:
@@ -207,12 +222,11 @@ class CLIToolkitApp:
                             self.console.print(
                                 f"Cannot create alias '{alias_name}' for "
                                 f"command '{command}' because it is already an alias.",
-                                style="red",
+                                style="bold red",
                             )
                             return
-                        # Add the alias to the configuration
                         self.aliases[alias_name] = command
-                        self.aliases.save()  # Save the updated configuration
+                        self.aliases.save()
                         self.logger.info(
                             "Alias '%s' created for command '%s'",
                             alias_name,
@@ -220,68 +234,76 @@ class CLIToolkitApp:
                         )
                         self.console.print(
                             f"Alias '{alias_name}' created for command '{command}'.",
-                            style="green",
+                            style="bold green",
                         )
-                    else:  # If the required arguments are not provided
+                    else:
                         self.logger.info("Invalid alias creation usage.")
                         self.console.print(
                             "Invalid alias creation usage. "
-                            "For more information, type 'help alias'."
+                            "For more information, type 'help alias'.",
+                            style="bold red",
                         )
                 case "delete" | "d":
-                    if len(sub_args) == 1:  # Check if the required arg is provided
+                    if len(sub_args) == 1:
                         alias_name = sub_args[0]
                         if alias_name in self.aliases:
                             del self.aliases[alias_name]
-                            self.aliases.save()  # Save the updated configuration
+                            self.aliases.save()
                             self.logger.info("Alias '%s' deleted.", alias_name)
                             self.console.print(
-                                f"Alias '{alias_name}' deleted.", style="green"
+                                f"Alias '{alias_name}' deleted.", style="bold green"
                             )
                         else:
                             self.logger.warning("Alias '%s' not found.", alias_name)
                             self.console.print(
-                                f"Alias '{alias_name}' not found.", style="red"
+                                f"Alias '{alias_name}' not found.", style="bold red"
                             )
-                    else:  # If the required argument is not provided
+                    else:
                         self.logger.info("Invalid alias deletion usage.")
                         self.console.print(
                             "Invalid alias deletion usage. "
-                            "For more information, type 'help alias'."
+                            "For more information, type 'help alias'.",
+                            style="bold red",
                         )
                 case unknown_command:
                     self.console.print(
                         f"Unknown sub-command: '{unknown_command}'. "
                         "Please enter an existing sub-command.",
-                        style="red",
+                        style="bold red",
                     )
 
-        # Handle the 'alias' command without arguments
         else:
             self.logger.debug("Listing all command aliases.")
 
-            if self.aliases:  # Check if there are any aliases defined
-                alias_list = [  # Iterate over all aliases
+            if self.aliases:
+                alias_list = [
                     f"[blue]{alias}[/blue]: {cmd}"
                     for alias, cmd in self.aliases.items()
                 ]
-                self.console.print(  # Print the list of aliases in a panel
+                self.console.print(
                     Panel(
                         "\n".join(alias_list), title="Command Aliases", highlight=True
                     )
                 )
-            else:  # If there are no aliases defined, show a message
+            else:
                 self.console.print("No command aliases defined.")
                 return
 
-    def cmd_clear(self, _):  # noqa: D417
+    def cmd_clear(self, args: list[str]):  # noqa: D417
         """Clear the console screen.
 
         Usage:
             clear: Clear the console screen.
 
         """
-        self.console.clear()  # Clear the console screen
+        if args:
+            self.logger.info("Invalid clear command usage.")
+            self.console.print(
+                "Invalid clear command usage. For more information, type 'help clear'.",
+                style="bold red",
+            )
+            return
+        self.console.clear()
         self.logger.info("Console cleared.")
 
     def cmd_config(self, args: list[str]):  # noqa: D417
@@ -307,30 +329,23 @@ class CLIToolkitApp:
             value: The value to set for the configuration.
 
         """
-        if args:  # If arguments are provided, attempt to set a configuration value
+        if args:
             self.logger.debug("Handling 'config' command with arguments.")
-
-            # Get the sub-command and its arguments
             sub_command = args[0]
             sub_args = args[1:]
-            self.logger.debug("Sub-command: '%s'", sub_command)
-            self.logger.debug("Sub-arguments: '%s'", sub_args)
 
-            # Match the sub-command
             match sub_command:
                 case "set" | "s":
                     if len(sub_args) == 3:
-                        # Extract the category, key, and value from the arguments
                         category = sub_args[0].lower()
                         key = sub_args[1].lower()
                         value = sub_args[2]
-                        # Convert the value to a boolean if necessary
+                        # Convert the value string to a boolean if necessary
                         match value.lower():
                             case "true":
                                 value = True
                             case "false":
                                 value = False
-                        # Check if the category exists
                         if category not in self.config:
                             self.logger.warning(
                                 "Failed to set configuration value. "
@@ -340,10 +355,9 @@ class CLIToolkitApp:
                             self.console.print(
                                 "Failed to set configuration value. "
                                 f"Category '{category}' does not exist.",
-                                style="red",
+                                style="bold red",
                             )
                             return
-                        # Check if the key exists
                         if key not in self.config[category]:
                             self.logger.warning(
                                 "Failed to set configuration value. "
@@ -354,10 +368,9 @@ class CLIToolkitApp:
                             self.console.print(
                                 "Failed to set configuration value. "
                                 f"Key '{key}' does not exist in category '{category}'.",
-                                style="red",
+                                style="bold red",
                             )
                             return
-                        # Check if the value is of the correct type
                         if type(value) is not type(self.config[category][key]):
                             self.logger.warning(
                                 "Failed to set configuration value. "
@@ -371,10 +384,9 @@ class CLIToolkitApp:
                                 "Failed to set configuration value. "
                                 f"Value '{value}' is not of the correct type "
                                 f"for key '{key}' in category '{category}'.",
-                                style="red",
+                                style="bold red",
                             )
                             return
-                        # Set the configuration value
                         self.config[category][key] = value
                         self.config.save()
                         self.logger.info(
@@ -384,14 +396,15 @@ class CLIToolkitApp:
                             value,
                         )
                         self.console.print(
-                            "[green]Configuration value set:[/green] "
+                            "[bold green]Configuration value set:[/bold green] "
                             f"[blue]{category}.{key}[/blue]: {value}"
                         )
-                    else:  # If the required arguments are not provided
+                    else:
                         self.logger.info("Invalid config usage.")
                         self.console.print(
                             "Invalid config usage. "
-                            "For more information, type 'help config'."
+                            "For more information, type 'help config'.",
+                            style="bold red",
                         )
                 case "reset" | "rs":
                     if len(sub_args) == 2:
@@ -400,7 +413,7 @@ class CLIToolkitApp:
                         default_value = self.config.default.get(category, {}).get(key)
                         if category in self.config and key in self.config[category]:
                             if default_value is not None:
-                                if Confirm().ask(  # Ask for confirmation
+                                if Confirm().ask(
                                     "Are you sure you want to "
                                     f"reset config {category}.{key} "
                                     "to default value?",
@@ -415,16 +428,17 @@ class CLIToolkitApp:
                                         default_value,
                                     )
                                     self.console.print(
-                                        f"[green]Configuration value reset:[/green] "
+                                        "[bold green]Configuration "
+                                        "value reset:[/bold green] "
                                         f"[blue]{category}.{key}[/blue]: "
                                         + str(default_value)
                                     )
-                                else:  # If the user does not confirm
+                                else:
                                     self.logger.info("Operation aborted by user.")
                                     self.console.print(
-                                        "Operation aborted.", style="yellow"
+                                        "Operation aborted.", style="bold yellow"
                                     )
-                            else:  # If there is no default value
+                            else:
                                 self.logger.info(
                                     "No default value found for "
                                     "category '%s' and key '%s'.",
@@ -434,9 +448,9 @@ class CLIToolkitApp:
                                 self.console.print(
                                     f"No default value found for "
                                     f"category '{category}' and key '{key}'.",
-                                    style="red",
+                                    style="bold red",
                                 )
-                        else:  # If the category or key does not exist
+                        else:
                             self.logger.info(
                                 "Category '%s' or key '%s' not found.",
                                 category,
@@ -444,72 +458,70 @@ class CLIToolkitApp:
                             )
                             self.console.print(
                                 f"Category '{category}' or key '{key}' not found.",
-                                style="red",
+                                style="bold red",
                             )
-                    else:  # If the required arguments are not provided
+                    else:
                         self.logger.info("Invalid config reset usage.")
                         self.console.print(
                             "Invalid config reset usage. "
                             "For more information, type 'help config'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "reset_all" | "rsa":
                     if len(sub_args) == 0:
-                        if Confirm().ask(  # Ask for confirmation
+                        if Confirm().ask(
                             "Are you sure you want to reset all "
                             "configuration values to their default values?",
                             default=False,
                         ):
-                            # Reset to default configuration
-                            self.config.clear()  # Clear the current config
-                            self.config.update(self.config.default)  # Reset to default
-                            self.config.save()  # Save the updated configuration
-                            # Log the reset action and show a confirmation message
+                            self.config.clear()
+                            self.config.update(self.config.default)
+                            self.config.save()
                             self.logger.info(
                                 "All configuration values reset to defaults."
                             )
                             self.console.print(
                                 "All configuration values reset to defaults.",
-                                style="green",
+                                style="bold green",
                             )
-                        else:  # If the user does not confirm
+                        else:
                             self.logger.info("Operation aborted by user.")
-                            self.console.print("Operation aborted.", style="yellow")
-                    else:  # If arguments are provided, show an error message
+                            self.console.print(
+                                "Operation aborted.", style="bold yellow"
+                            )
+                    else:
                         self.logger.info("Invalid config reset_all usage.")
                         self.console.print(
                             "Invalid config reset_all usage. "
                             "For more information, type 'help config'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "reload" | "rl":
                     if len(sub_args) == 0:
-                        self.config.load()  # Reload the configuration from the file
+                        self.config.load()
                         self.logger.info("Configuration reloaded from file.")
                         self.console.print(
-                            "[green]Configuration reloaded from file.[/green]"
+                            "[bold green]Configuration reloaded from file.[/bold green]"
                         )
-                    else:  # If arguments are provided, show an error message
+                    else:
                         self.logger.info("Invalid config reload usage.")
                         self.console.print(
                             "Invalid config reload usage. "
                             "For more information, type 'help config'.",
-                            style="red",
+                            style="bold red",
                         )
                 case unknown_command:
                     self.logger.warning("Unknown sub-command: '%s'", unknown_command)
                     self.console.print(
-                        f"Unknown sub-command: '{unknown_command}'", style="red"
+                        f"Unknown sub-command: '{unknown_command}'", style="bold red"
                     )
                     return
 
-        else:  # If no arguments are provided, show all configuration values
+        else:
             for category, settings in self.config.items():
-                # Create a list of configuration values for the category
                 config_list = [
                     f"[blue]{key}[/blue]: {value}" for key, value in settings.items()
                 ]
-                # Print the configuration values for the category in a panel
                 self.console.print(
                     Panel(
                         "\n".join(config_list),
@@ -518,7 +530,20 @@ class CLIToolkitApp:
                     )
                 )
 
-    def cmd_exit(self, _):  # noqa: D417
+    def cmd_echo(self, args: list[str]):  # noqa: D417
+        """Echo the arguments.
+
+        Usage:
+            echo [args]: Echo the arguments.
+
+        Arguments:
+            args: The arguments to echo.
+
+        """
+        self.logger.info("Printing arguments: %s", args)
+        self.console.print("\n".join(args))
+
+    def cmd_exit(self, args: list[str]):  # noqa: D417
         """Exit the application.
 
         Equivalent to Ctrl+C, this command exits the application with code 0.
@@ -527,9 +552,16 @@ class CLIToolkitApp:
             exit: Exit the application with code 0.
 
         """
+        if args:
+            self.logger.info("Invalid exit command usage.")
+            self.console.print(
+                "Invalid exit command usage. For more information, type 'help exit'.",
+                style="bold red",
+            )
+            return
         self.logger.info("Exit command received. Exiting...")
         self.console.print("Goodbye!")
-        sys.exit(0)  # Exit the application with code 0 on exit command
+        sys.exit(0)
 
     def cmd_help(self, args: list[str]):  # noqa: D417
         """Show help information for commands.
@@ -543,11 +575,17 @@ class CLIToolkitApp:
 
         """
         if args:
-            # Get the command name
-            cmd_name = args[0]  # Get the command name from the arguments
+            if len(args) > 1:
+                self.logger.info("Invalid help command usage.")
+                self.console.print(
+                    "Invalid help command usage. "
+                    "For more information, type 'help help'.",
+                    style="bold red",
+                )
+                return
+            cmd_name = args[0]
             self.logger.debug("Showing help for command '%s'", cmd_name)
 
-            # If the method exists and is callable, show its docstring as detailed help
             if callable(method_attr := getattr(self, f"cmd_{cmd_name}", None)):
                 if method_doc := method_attr.__doc__:
                     self.console.print(
@@ -558,34 +596,31 @@ class CLIToolkitApp:
                         ),
                         markup=False,
                     )
-                else:  # If the method has no docstring, provide a default message
+                else:
                     self.console.print(
                         f"Command '{cmd_name}' has no description available."
                     )
-            elif cmd_name in self.aliases:  # If the command is an alias
+            elif cmd_name in self.aliases:
                 self.logger.debug("Showing help for alias '%s'", cmd_name)
                 self.console.print(
                     f"Command '{cmd_name}' is an alias for '{self.aliases[cmd_name]}'."
                 )
                 self.console.print("Redirecting to the original command.")
                 self.cmd_help([self.aliases[cmd_name].split(" ")[0]])
-            else:  # If the method doesn't exist or isn't callable
+            else:
                 self.console.print(
                     f"Command '{cmd_name}' not found. "
                     "Please enter an existing command.",
-                    style="red",
+                    style="bold red",
                 )
 
-        else:  # If no specific command is provided, show a list of available commands
+        else:
             self.logger.debug("Showing help for all commands.")
 
-            # Iterate over all methods in the class
-            command_list = []  # List to store command names
+            command_list = []
             for method_name in dir(self):
-                # Ignore methods that don't start with "cmd_"
                 if not method_name.startswith("cmd_"):
                     continue
-                # If the method exists and is callable, add it to the command list
                 if callable(method_attr := getattr(self, method_name, None)):
                     if method_doc := method_attr.__doc__:
                         self.logger.debug(
@@ -595,7 +630,7 @@ class CLIToolkitApp:
                             f"[blue]{method_name[4:]}[/blue]: "
                             + method_doc.splitlines()[0]
                         )
-                    else:  # If the method has no docstring, provide a default message
+                    else:
                         self.logger.debug(
                             "Method '%s' has no docstring. "
                             "Adding default message to list.",
@@ -605,7 +640,6 @@ class CLIToolkitApp:
                             f"[blue]{method_name[4:]}[/blue]: No description available."
                         )
 
-            # Print command list message
             self.console.print(
                 Panel(
                     "\n".join(command_list), title="Available Commands", highlight=True
@@ -645,138 +679,133 @@ class CLIToolkitApp:
             value: The value to set for the plugin configuration.
 
         """
-        if args:  # If arguments are provided, handle them
+        if args:
             self.logger.debug("Handling 'plugin' command with arguments.")
-
-            # Get the sub-command and its arguments
             sub_command = args[0]
             sub_args = args[1:]
-            self.logger.debug("Sub-command: '%s'", sub_command)
-            self.logger.debug("Sub-command arguments: '%s'", sub_args)
 
-            # Match the sub-command
             match sub_command:
                 case "load" | "l":
-                    if len(sub_args) == 1:  # Check if the arguments are valid
+                    if len(sub_args) == 1:
                         try:
                             load_state = self.plugin_manager.load_plugin(sub_args[0])
-                        except Exception as e:  # Catch any exceptions
+                        except Exception as e:
                             self.logger.error(
                                 "Failed to load plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to load plugin '{sub_args[0]}': {e}",
-                                style="red",
+                                style="bold red",
                             )
                         else:
                             self.console.print(
                                 f"Loaded plugin: {sub_args[0]}",
-                                style="green",
+                                style="bold green",
                             ) if load_state else self.console.print(
                                 f"Plugin '{sub_args[0]}' is already loaded.",
-                                style="yellow",
+                                style="bold yellow",
                             )
-                    else:  # If the arguments are not valid, show an error message
+                    else:
                         self.logger.info("Invalid plugin load usage.")
                         self.console.print(
                             "Invalid plugin load usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "unload" | "u":
-                    if len(sub_args) == 1:  # Check if the arguments are valid
+                    if len(sub_args) == 1:
                         try:
                             self.plugin_manager.unload_plugin(sub_args[0])
-                        except Exception as e:  # Catch any exceptions
+                        except Exception as e:
                             self.logger.error(
                                 "Failed to unload plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to unload plugin '{sub_args[0]}': {e}",
-                                style="red",
+                                style="bold red",
                             )
                         else:
                             self.console.print(
-                                f"Unloaded plugin: {sub_args[0]}", style="green"
+                                f"Unloaded plugin: {sub_args[0]}", style="bold green"
                             )
-                    else:  # If the arguments are not valid, show an error message
+                    else:
                         self.logger.info("Invalid plugin unload usage.")
                         self.console.print(
                             "Invalid plugin unload usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "reload" | "r":
-                    if len(sub_args) == 1:  # Check if the arguments are valid
+                    if len(sub_args) == 1:
                         try:
                             self.plugin_manager.reload_plugin(sub_args[0])
-                        except Exception as e:  # Catch any exceptions
+                        except Exception as e:
                             self.logger.error(
                                 "Failed to reload plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to reload plugin '{sub_args[0]}': {e}",
-                                style="red",
+                                style="bold red",
                             )
                         else:
                             self.console.print(
-                                f"Reloaded plugin: {sub_args[0]}", style="green"
+                                f"Reloaded plugin: {sub_args[0]}", style="bold green"
                             )
-                    else:  # If the arguments are not valid, show an error message
+                    else:
                         self.logger.info("Invalid plugin reload usage.")
                         self.console.print(
                             "Invalid plugin reload usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "disable" | "dis":
-                    if len(sub_args) == 1:  # Check if the arguments are valid
+                    if len(sub_args) == 1:
                         try:
                             self.plugin_manager.disable_plugin(sub_args[0])
-                        except Exception as e:  # Catch any exceptions
+                        except Exception as e:
                             self.logger.error(
                                 "Failed to disable plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to disable plugin '{sub_args[0]}': {e}",
-                                style="red",
+                                style="bold red",
                             )
                         else:
                             self.console.print(
-                                f"Disabled plugin: {sub_args[0]}", style="green"
+                                f"Disabled plugin: {sub_args[0]}", style="bold green"
                             )
-                    else:  # If the arguments are not valid, show an error message
+                    else:
                         self.logger.info("Invalid plugin disable usage.")
                         self.console.print(
                             "Invalid plugin disable usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "enable" | "en":
-                    if len(sub_args) == 1:  # Check if the arguments are valid
+                    if len(sub_args) == 1:
                         try:
                             self.plugin_manager.enable_plugin(sub_args[0])
-                        except Exception as e:  # Catch any exceptions
+                        except Exception as e:
                             self.logger.error(
                                 "Failed to enable plugin '%s': %s", sub_args[0], e
                             )
                             self.console.print(
                                 f"Failed to enable plugin '{sub_args[0]}': {e}",
-                                style="red",
+                                style="bold red",
                             )
                         else:
                             self.console.print(
-                                f"Enabled plugin: {sub_args[0]}", style="green"
+                                f"Enabled plugin: {sub_args[0]}", style="bold green"
                             )
-                    else:  # If the arguments are not valid, show an error message
+                    else:
                         self.logger.info("Invalid plugin enable usage.")
                         self.console.print(
                             "Invalid plugin enable usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "help" | "h":
-                    if len(sub_args) == 1:  # Check if the arguments are valid
+                    if len(sub_args) == 1:
                         plugin_name = sub_args[0]
                         self.logger.debug("Showing help for plugin '%s'", plugin_name)
                         if plugin_instance := self.plugin_manager.plugin_instances.get(
@@ -791,77 +820,76 @@ class CLIToolkitApp:
                                     ),
                                     markup=False,
                                 )
-                            else:  # If the plugin has no docstring, show a message
+                            else:
                                 self.console.print(
                                     f"Plugin '{plugin_name}' has "
                                     "no description available."
                                 )
-                        else:  # If the plugin is not found, show an error message
+                        else:
                             self.console.print(
                                 f"Plugin '{plugin_name}' not found. "
                                 "Please enter an existing plugin name.",
-                                style="red",
+                                style="bold red",
                             )
-                    else:  # If the arguments are not valid, show an error message
+                    else:
                         self.logger.info("Invalid plugin help usage.")
                         self.console.print(
                             "Invalid plugin help usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "load_all" | "la":
-                    if not sub_args:  # If no arguments are provided, load all plugins
+                    if not sub_args:
                         loaded_count = self.plugin_manager.load_all_plugins(
                             self.console
                         )
                         self.console.print(
-                            f"Loaded {loaded_count} plugins.", style="green"
+                            f"Loaded {loaded_count} plugins.", style="bold green"
                         )
-                    else:  # If arguments are provided, show an error message
+                    else:
                         self.logger.info("Invalid plugin load_all usage.")
                         self.console.print(
                             "Invalid plugin load_all usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "unload_all" | "ua":
-                    if not sub_args:  # If no arguments are provided, unload all plugins
+                    if not sub_args:
                         unloaded_count = self.plugin_manager.unload_all_plugins()
                         self.console.print(
-                            f"Unloaded {unloaded_count} plugins.", style="green"
+                            f"Unloaded {unloaded_count} plugins.", style="bold green"
                         )
-                    else:  # If arguments are provided, show an error message
+                    else:
                         self.logger.info("Invalid plugin unload_all usage.")
                         self.console.print(
                             "Invalid plugin unload_all usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case "reload_all" | "ra":
-                    if not sub_args:  # If no arguments are provided, reload all plugins
+                    if not sub_args:
                         reloaded_count = self.plugin_manager.reload_all_plugins()
                         self.console.print(
-                            f"Reloaded {reloaded_count} plugins.", style="green"
+                            f"Reloaded {reloaded_count} plugins.", style="bold green"
                         )
-                    else:  # If arguments are provided, show an error message
+                    else:
                         self.logger.info("Invalid plugin reload_all usage.")
                         self.console.print(
                             "Invalid plugin reload_all usage. "
                             "For more information, type 'help plugin'.",
-                            style="red",
+                            style="bold red",
                         )
                 case unknown_command:
                     self.console.print(
                         f"Unknown sub-command: '{unknown_command}'. "
                         "Please enter an existing sub-command.",
-                        style="red",
+                        style="bold red",
                     )
 
-        else:  # If no arguments are provided, list all plugins
+        else:
             self.logger.debug("Listing all plugins.")
 
-            # Iterate over all loaded plugins
-            loaded_plugin = []  # List to hold loaded plugin names and descriptions
+            loaded_plugin = []
             for (
                 plugin_name,
                 plugin_instance,
@@ -873,7 +901,7 @@ class CLIToolkitApp:
                     loaded_plugin.append(
                         f"[blue]{plugin_name}[/blue]: {plugin_doc.splitlines()[0]}"
                     )
-                else:  # If the plugin has no docstring, show a default message
+                else:
                     self.logger.debug(
                         "Plugin '%s' has no docstring. Adding default message to list.",
                         plugin_name,
@@ -882,21 +910,18 @@ class CLIToolkitApp:
                         f"[blue]{plugin_name}[/blue]: No description available."
                     )
 
-            # Check for unloaded plugins in the plugin directory
-            unloaded_plugin = []  # List to hold unloaded plugin names and descriptions
+            unloaded_plugin = []
             for file in self.plugin_manager.plugin_dir.iterdir():
-                if file.is_file() and file.suffix == ".py":  # Skip non-Python files
-                    # Get the plugin name from the file name
+                if file.is_file() and file.suffix == ".py":
                     plugin_name = file.stem
                     if plugin_name not in self.plugin_manager.plugin_instances:
                         unloaded_plugin.append(f"[blue]{plugin_name}[/blue]: Unloaded")
 
-            disabled_plugin = []  # List to hold disabled plugin names and descriptions
+            disabled_plugin = []
             for plugin_name in self.plugin_manager.disabled_plugins:
                 disabled_plugin.append(f"[blue]{plugin_name}[/blue]: Disabled")
 
-            # Print plugin list message
-            (  # Print the list of loaded plugins in a panel
+            (
                 self.console.print(
                     Panel(
                         "\n".join(loaded_plugin), title="Loaded Plugins", highlight=True
@@ -905,7 +930,7 @@ class CLIToolkitApp:
                 if loaded_plugin
                 else self.console.print("No plugins loaded.")
             )
-            (  # Print the list of unloaded plugins in a panel
+            (
                 self.console.print(
                     Panel(
                         "\n".join(unloaded_plugin),
@@ -918,7 +943,7 @@ class CLIToolkitApp:
                     "No unloaded plugins found in the plugin directory."
                 )
             )
-            (  # Print the list of disabled plugins in a panel
+            (
                 self.console.print(
                     Panel(
                         "\n".join(disabled_plugin),
@@ -930,13 +955,40 @@ class CLIToolkitApp:
                 else self.console.print("No disabled plugins.")
             )
 
-    def cmd_version(self, _):  # noqa: D417
+    def cmd_run(self, args: list[str]):  # noqa: D417
+        """Run a command in the shell.
+
+        Usage:
+            run <command>: Run a command in the shell.
+
+        Arguments:
+            command: The command to run.
+
+        """
+        self.logger.debug("Running command: %s", args)
+        try:
+            subprocess.run(args, shell=True, text=True)
+        except Exception as e:
+            self.logger.error("Command failed: %s", e)
+            self.console.print(
+                f"Command '{' '.join(args)}' failed: {e}", style="bold red"
+            )
+            return
+
+    def cmd_version(self, args: list[str]):  # noqa: D417
         """Display the version of CLI-Toolkit application and plugins.
 
         Usage:
             version: Display the version of the CLI-Toolkit application.
         """
-        # Display Python version and CLI-Toolkit version
+        if args:
+            self.logger.info("Invalid version command usage.")
+            self.console.print(
+                "Invalid version command usage. "
+                "For more information, type 'help version'.",
+                style="bold red",
+            )
+            return
         app_version = [
             "[blue]Python[/blue] v" + ".".join([str(part) for part in PYTHON_VERSION]),
             "[blue]CLI-Toolkit[/blue] v"
@@ -944,7 +996,6 @@ class CLIToolkitApp:
         ]
         self.console.print(Panel("\n".join(app_version), title="Application Versions"))
 
-        # Display plugin versions
         plugin_versions_list = [
             f"[blue]{plugin_name}[/blue] v"
             + ".".join([str(part) for part in plugin.VERSION])

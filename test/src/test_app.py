@@ -3,10 +3,13 @@
 # Import libraries
 import contextlib
 import json
+import time
 import tomllib
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 # Import the app class to test
 from src.app import CLIToolkitApp
@@ -48,10 +51,41 @@ class TestCLIToolkitApp:
         assert hasattr(app, "cmd_alias") and callable(app.cmd_alias)
         assert hasattr(app, "cmd_clear") and callable(app.cmd_clear)
         assert hasattr(app, "cmd_config") and callable(app.cmd_config)
+        assert hasattr(app, "cmd_echo") and callable(app.cmd_echo)
         assert hasattr(app, "cmd_exit") and callable(app.cmd_exit)
         assert hasattr(app, "cmd_help") and callable(app.cmd_help)
         assert hasattr(app, "cmd_plugin") and callable(app.cmd_plugin)
+        assert hasattr(app, "cmd_run") and callable(app.cmd_run)
         assert hasattr(app, "cmd_version") and callable(app.cmd_version)
+
+    def test_dispatch_magic_variable(self):
+        """Test that ${cwd} and other magic variables are resolved in _dispatch."""
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+
+        # Test ${cwd} resolves to the current working directory
+        app._dispatch("echo ${cwd}")
+        assert printed == [str(Path.cwd().resolve())]
+
+        # Test unknown ${...} passes through as the variable name
+        printed.clear()
+        app._dispatch("echo ${unknown}")
+        assert printed == ["unknown"]
+
+        # Test regular arguments are unchanged
+        printed.clear()
+        app._dispatch("echo hello world")
+        assert printed == ["hello\nworld"]
+
+        # Test mixed regular and magic variable arguments
+        printed.clear()
+        app._dispatch("echo prefix ${cwd} suffix")
+        assert printed == [f"prefix\n{Path.cwd().resolve()}\nsuffix"]
 
     def test_cmd_alias(self):
         """Test the cmd_alias command."""
@@ -91,6 +125,13 @@ class TestCLIToolkitApp:
         # Test listing aliases
         app.cmd_alias([])  # Should print the list of aliases without error
 
+        # Test invalid argument counts for sub-commands
+        app.cmd_alias(["create"])  # Missing required arguments
+        app.cmd_alias(["create", "only_one"])
+        app.cmd_alias(["create", "a", "b", "extra"])
+        app.cmd_alias(["delete"])  # Missing required argument
+        app.cmd_alias(["delete", "a", "extra"])
+
         # Restore original aliases after testing
         app.aliases.clear()
         app.aliases.update(current_aliases)
@@ -99,9 +140,20 @@ class TestCLIToolkitApp:
     def test_cmd_clear(self):
         """Test the cmd_clear command."""
         app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwagrs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
 
         # Test that the cmd_clear method can be called without error
         app.cmd_clear([])
+        assert not printed
+
+        # Test that extra arguments are rejected
+        app.cmd_clear(["extra"])
+        assert any("Invalid clear command usage" in message for message in printed)
 
     def test_cmd_config(self, monkeypatch):
         """Test the cmd_config command."""
@@ -205,18 +257,60 @@ class TestCLIToolkitApp:
         # Test unknown sub-command
         app.cmd_config(["unknown"])  # Should print error without raising
 
+        # Test invalid argument counts for sub-commands
+        app.cmd_config(["set"])  # Missing required arguments
+        app.cmd_config(["set", "plugin", "load_on_start"])  # Too few arguments
+        app.cmd_config(["set", "plugin", "load_on_start", "true", "extra"])
+        app.cmd_config(["reset", "plugin"])  # Too few arguments
+        app.cmd_config(["reset_all", "extra"])
+        app.cmd_config(["reload", "extra"])
+
         # Restore original config after testing
         app.config.clear()
         app.config.update(original_config)
         app.config.save()
 
+    def test_cmd_echo(self):
+        """Test the cmd_echo command."""
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+
+        # Test echoing no arguments
+        app.cmd_echo([])
+        assert printed == [""]
+
+        # Test echoing a single argument
+        printed.clear()
+        app.cmd_echo(["hello"])
+        assert printed == ["hello"]
+
+        # Test echoing multiple arguments
+        printed.clear()
+        app.cmd_echo(["hello", "world"])
+        assert printed == ["hello\nworld"]
+
     def test_cmd_exit(self):
         """Test the cmd_exit command."""
         app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwagrs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
 
         # Test that the cmd_exit method can be called without error
         with contextlib.suppress(SystemExit):
             app.cmd_exit([])
+
+        # Test that extra arguments are rejected
+        app.cmd_exit(["extra"])
+        assert any("Invalid exit command usage" in message for message in printed)
 
     def test_cmd_help(self):
         """Test the cmd_help command."""
@@ -227,6 +321,9 @@ class TestCLIToolkitApp:
 
         # Test listing all commands
         app.cmd_help([])  # Should print the list of commands without error
+
+        # Test that multiple arguments are rejected
+        app.cmd_help(["alias", "extra"])
 
     def test_cmd_plugin(self, tmp_path):
         """Test the cmd_plugin command."""
@@ -299,12 +396,28 @@ class Plugin(BasePlugin):
         # Test listing all plugins
         app.cmd_plugin([])  # Should print plugins list without error
 
+        # Test invalid argument counts for sub-commands
+        app.cmd_plugin(["load"])
+        app.cmd_plugin(["load", "test_plugin", "extra"])
+        app.cmd_plugin(["load_all", "extra"])
+        app.cmd_plugin(["reload_all", "extra"])
+
     def test_cmd_version(self):
         """Test the cmd_version command."""
         app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwagrs):
+            printed.append(" ".join(str(arg) for arg in args))
+
+        app.console.print = capture_print
 
         # Test that the cmd_version method can be called without error
-        app.cmd_version([])  # Should print the version information without error
+        app.cmd_version([])
+
+        printed.clear()
+        app.cmd_version(["extra"])
+        assert any("Invalid version command usage" in message for message in printed)
 
     def test_mainloop(self, monkeypatch):
         """Test mainloop dispatches commands."""
@@ -343,3 +456,137 @@ class Plugin(BasePlugin):
             app.mainloop()
 
         assert dispatched == []
+
+    def test_mainloop_single_ctrl_c(self, monkeypatch):
+        """Test single Ctrl+C at prompt shows warning without exiting."""
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+        app._last_ctrl_c_time = 0.0
+
+        call_count = 0
+
+        def mock_input(_=""):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise KeyboardInterrupt()
+            raise EOFError()
+
+        monkeypatch.setattr("builtins.input", mock_input)
+
+        with contextlib.suppress(SystemExit):
+            app.mainloop()
+
+        # First press should show the "press again" warning, not exit
+        assert any("Press Ctrl+C again" in msg for msg in printed)
+        # _last_ctrl_c_time should be updated (no longer 0.0)
+        assert app._last_ctrl_c_time > 0.0
+
+    def test_mainloop_double_ctrl_c(self, monkeypatch):
+        """Test double Ctrl+C within 2 seconds exits the application."""
+        app = CLIToolkitApp()
+
+        call_count = 0
+
+        def mock_input(_=""):
+            nonlocal call_count
+            call_count += 1
+            raise KeyboardInterrupt()
+
+        monkeypatch.setattr("builtins.input", mock_input)
+        # Set the last press time so the second interrupt will be within 2s
+        app._last_ctrl_c_time = time.time()
+
+        with pytest.raises(SystemExit):
+            app.mainloop()
+
+    def test_dispatch_interrupts_command(self):
+        """Test KeyboardInterrupt during command execution is caught by _dispatch."""
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+
+        # Register a command that raises KeyboardInterrupt
+        def _cmd_raises_interrupt(_args):
+            raise KeyboardInterrupt()
+
+        app.cmd_raises_interrupt = _cmd_raises_interrupt  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Should not propagate KeyboardInterrupt
+        app._dispatch("raises_interrupt")
+
+        # Should print the interruption message
+        assert any("Command interrupted" in msg for msg in printed)
+
+    def test_dispatch_interrupts_alias_command(self):
+        """Test KeyboardInterrupt during alias command execution is caught."""
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+
+        # Register a command that raises KeyboardInterrupt
+        def _cmd_raises_interrupt(_args):
+            raise KeyboardInterrupt()
+
+        app.cmd_raises_interrupt = _cmd_raises_interrupt  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Create an alias for the interrupt-raising command
+        app.aliases["ri"] = "raises_interrupt"
+
+        # Should not propagate KeyboardInterrupt
+        app._dispatch("ri")
+
+        # Should print the interruption message
+        assert any("Command interrupted" in msg for msg in printed)
+
+    def test_cmd_run(self, monkeypatch):
+        """Test the cmd_run command."""
+        import subprocess
+
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+
+        # Test successful command execution
+        mock_run = MagicMock()
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        app.cmd_run(["echo", "hello"])
+        mock_run.assert_called_once_with(["echo", "hello"], shell=True, text=True)
+        assert not printed  # No error output on success
+
+        # Test failed command execution
+        mock_run.reset_mock()
+        mock_run.side_effect = OSError("command not found")
+        app.cmd_run(["nonexistent_command"])
+        mock_run.assert_called_once_with(["nonexistent_command"], shell=True, text=True)
+        assert any("failed" in msg for msg in printed)
+
+    def test_dispatch_no_interrupt_on_normal_command(self):
+        """Test normal command execution is unaffected by Ctrl+C handling."""
+        app = CLIToolkitApp()
+        printed: list[str] = []
+
+        def capture_print(*args, **_kwargs):
+            printed.append(str(args[0]) if args else "")
+
+        app.console.print = capture_print
+
+        app._dispatch("echo hello world")
+        assert printed == ["hello\nworld"]

@@ -1,16 +1,15 @@
 """API for plugins in the CLI-Toolkit application."""
 
-# Import modules
-from inspect import currentframe  # Get the current frame
-from logging import getLogger  # Get the logger
+from inspect import currentframe
+from logging import getLogger
 
-logger = getLogger("Plugin")
+logger = getLogger("clit.plugin")
 
 
 class BasePlugin:
     """Base class for plugins in the CLI-Toolkit application."""
 
-    VERSION: tuple[int, int, int] = (0, 0, 0)  # Version number of the plugin
+    VERSION: tuple[int, int, int] = (0, 0, 0)
 
     def __init__(self, master) -> None:
         """Initialize the plugin.

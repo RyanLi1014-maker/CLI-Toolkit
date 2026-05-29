@@ -2,6 +2,8 @@
 
 CLI-Toolkit features a powerful plugin system that allows you to extend functionality with minimal effort. This guide walks you through everything from basic plugin creation to advanced integration patterns.
 
+> **Note for executable users**: When running the packaged executable, the `plugin/`, `config/`, and `package/` directories are located inside the `_internal` folder (e.g., `_internal/plugin/`) rather than at the project root. All references to these directories in this guide should be read as relative to the `_internal` folder if you are using the executable version.
+
 ## Table of Contents
 
 - [Plugin Development Guide](#plugin-development-guide)
@@ -64,7 +66,7 @@ CLI-Toolkit features a powerful plugin system that allows you to extend function
 
 ## Plugin Structure
 
-Plugins are Python files placed in the `plugin/` directory at the project root. The filename (without `.py`) becomes your plugin's identifier. If the directory doesn't exist, it will be created automatically when you first run CLI-Toolkit.
+Plugins are Python files placed in the `plugin/` directory. The filename (without `.py`) becomes your plugin's identifier. If the directory doesn't exist, it will be created automatically when you first run CLI-Toolkit.
 
 **File Location:** `plugin/my_plugin.py`  
 **Plugin Name:** `my_plugin`
@@ -1093,10 +1095,10 @@ class Plugin(BasePlugin):
 
 ### Import Errors
 
-- Use relative imports from project root
+- Use relative imports from the application root (the `_internal` folder when using the executable)
 - Available modules: `api`, `util.config`
 - Don't import from other plugins directly
-- Core dependencies (`rich`) are installed with the application; plugin-specific packages belong in the `package/` directory (see the README)
+- Core dependencies (`rich`) are installed with the application; plugin-specific packages belong in the `package/` directory (see the README; executable users should use `_internal/package/`)
 
 ## Getting Help
 

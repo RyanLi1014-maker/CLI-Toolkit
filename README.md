@@ -33,7 +33,8 @@ CLI-Toolkit is a flexible, modular command-line interface application designed t
 - **📦 Modular Architecture**: Clean separation of concerns between core and plugins
 - **⚙️ Configuration Management**: Built-in support for plugin configuration storage
 - **📝 Logging Integration**: Comprehensive logging for debugging and monitoring
-- **💬 Interactive CLI**: User-friendly command loop with help system and file-backed command history
+- **✨ Magic Variables**: Resolve `${cwd}` and other placeholders in command arguments
+- **🐚 Shell Integration**: Run external commands with the built-in `run` command
 - **🛡️ Type Safety**: Modern Python with type hints and static analysis
 
 ---
@@ -165,10 +166,73 @@ Once inside the CLI:
   CLI-Toolkit> version
   ```
 
+- **Print text or magic variables**:
+
+  ```
+  CLI-Toolkit> echo hello world
+  CLI-Toolkit> echo ${cwd}
+  ```
+
+- **Run a shell command**:
+
+  ```
+  CLI-Toolkit> run echo hello
+  ```
+
+- **Manage plugins** (load, unload, reload, enable, disable):
+
+  ```
+  CLI-Toolkit> plugin load my_plugin
+  ```
+
+- **View or change configuration**:
+
+  ```
+  CLI-Toolkit> config
+  ```
+
+- **Create command aliases**:
+
+  ```
+  CLI-Toolkit> alias create ll run ls -la
+  ```
+
+- **Clear the screen**:
+
+  ```
+  CLI-Toolkit> clear
+  ```
+
 - **Exit the application**:
+
   ```
   CLI-Toolkit> exit
   ```
+
+  Or press **Ctrl+C** twice within 2 seconds. A single **Ctrl+C** cancels the current command and returns to the prompt.
+
+### Magic Variables
+
+CLI-Toolkit supports **magic variables** in command arguments. These are placeholders written as `${variable_name}` that are automatically resolved to dynamic values before the command executes.
+
+Currently supported magic variables:
+
+- **`${cwd}`**: Resolves to the absolute path of the current working directory. Useful for passing the working directory to plugin commands or built-in commands that accept paths.
+
+Any unrecognized magic variable (e.g., `${unknown}`) is passed through as the variable name itself.
+
+Example:
+
+```
+CLI-Toolkit> echo ${cwd} ${unknown}
+```
+
+The output would be:
+
+```
+D:\Data\Projects\CLI-Toolkit
+unknown
+```
 
 ---
 
@@ -209,7 +273,7 @@ Your plugin commands are now available alongside built-in commands!
 
 ### Developing Plugins
 
-Creating a plugin is straightforward. Create a Python file in the `plugin/` directory:
+Creating a plugin is straightforward. Drop a Python file in the `plugin/` directory with a class that inherits from `BasePlugin` and methods starting with `cmd_`:
 
 ```python
 from api import BasePlugin
@@ -218,17 +282,12 @@ from api import BasePlugin
 class Plugin(BasePlugin):
     """My awesome plugin."""
 
-    VERSION = (1, 0, 0)  # Optional version number
-
     def cmd_hello(self, args):
         """Say hello."""
         self.console.print("Hello from my plugin!", style="bold green")
-
-        if args:
-            self.console.print(f"Arguments received: {args}")
 ```
 
-That's it! The method `cmd_hello` automatically becomes the `hello` command.
+That's it! Each `cmd_<name>` method automatically becomes a `<name>` command.
 
 #### Key Plugin Features
 
@@ -246,32 +305,36 @@ For comprehensive plugin development guidance, see [Plugin Development Documenta
 
 Some plugins may require external Python packages that are not included in the main project dependencies. You can manually download these packages from PyPI and place them in the `package/` directory for your plugins to import.
 
+> **For executable users**: The `package/` directory is located inside the `_internal` folder (e.g., `_internal/package/`). When following the instructions below, replace all references to the `package/` directory with `_internal/package/` — or `cd` into `_internal` first so that `./package` resolves correctly.
+
 ### Why Use the `package/` Directory?
 
 - **Plugin Isolation**: Keep plugin-specific dependencies separate from core dependencies
 - **Customizable**: Choose which packages to download and even create your own for your plugin
 - **Executable Support**: Allows you to download packages for CLI-Toolkit Executable
 
-### Method 1: Using `uv` (Recommended)
+### Method 1: Using `uv` (recommended)
 
-The easiest way to download a package is using `uv`:
+You can download packages using `uv`:
 
-1. cd to the project directory
-2. Download the package with `uv pip install`
+1. **Install `uv`**: Go to the `uv` [repository](https://github.com/astral-sh/uv) and follow the installation instructions.
+2. **Run CLI-Toolkit**: Run CLI-Toolkit firstly to create the `package/` directory.
+3. **Go to the project directory**: `cd` into the CLI-Toolkit directory.
+4. **Download Packages**: Run the following command in the terminal:
 
-```bash
-# Download a package to the package directory
-uv pip install <package_name> --target ./package
+   ```bash
+   # Download a package to the package directory
+   uv pip install <package_name> --target ./package
 
-# Example: Download the 'requests' package
-uv pip install requests --target ./package
-```
+   # Example: Download the 'requests' package
+   uv pip install requests --target ./package
+   ```
 
-**For multiple packages:**
+   **For multiple packages:**
 
-```bash
-uv pip install package1 package2 package3 --target ./package
-```
+   ```bash
+   uv pip install package1 package2 package3 --target ./package
+   ```
 
 ### Method 2: Using PyPI Website
 
@@ -322,7 +385,7 @@ class Plugin(BasePlugin):
 
 ### Checking Installed Packages
 
-To see what's currently in your package directory:
+To see what's currently in your package directory (for the executable version, run this inside `_internal`):
 
 ```bash
 ls package/      # On Linux/Mac
@@ -331,7 +394,7 @@ dir package\     # On Windows
 
 ### Removing Packages
 
-If you need to remove a package from the `package/` directory:
+If you need to remove a package from the `package/` directory (for the executable version, `_internal/package/`):
 
 **Using command line:**
 
@@ -347,7 +410,7 @@ del package\requests-2.31.0-py3-none-any.whl   # On Windows
 
 **Using file explorer:**
 
-- Navigate to the `package/` directory
+- Navigate to the `package/` directory (for the executable version, open `_internal/package/`)
 - Select the package file(s) you want to remove
 - Delete them using your system's standard delete operation
 
@@ -363,11 +426,14 @@ del package\requests-2.31.0-py3-none-any.whl   # On Windows
 
 CLI-Toolkit uses [Ruff](https://github.com/astral-sh/ruff) for linting and code quality. The project enforces:
 
+- **ARG**: Unused argument detection
 - **B**: Bugbear checks
 - **C4**: Comprehension rules
 - **D**: Docstring conventions
 - **E/F**: PEP8 errors and warnings
+- **G**: Logging format strings
 - **I**: Import sorting
+- **LOG**: Logging best practices
 - **PTH**: Pathlib usage
 - **SIM**: Simplify code
 - **UP**: Pyupgrade rules
@@ -377,8 +443,8 @@ CLI-Toolkit uses [Ruff](https://github.com/astral-sh/ruff) for linting and code 
 
 Core runtime dependencies (defined in `pyproject.toml`):
 
-| Package | Purpose |
-| --- | --- |
+| Package                                    | Purpose                                       |
+| ------------------------------------------ | --------------------------------------------- |
 | [rich](https://github.com/Textualize/rich) | Terminal formatting and plugin console output |
 
 ### Adding Dependencies

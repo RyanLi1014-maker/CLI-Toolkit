@@ -18,8 +18,7 @@ from src.exception import (
 from src.util.config import SetConfig
 from src.util.project_root import PROJECT_ROOT
 
-# Set up the base logger
-logger = getLogger("CLI-Toolkit")
+logger = getLogger("clit.plugin_manager")
 
 
 class PluginManager:
@@ -35,39 +34,27 @@ class PluginManager:
                 Defaults to "plugin".
 
         """
-        # Set up the attributes
-        self.master = master  # Reference to the main application
-        self.logger = logger.getChild("PluginManager")  # Logger
-        self.plugin_instances: dict[  # Dictionary to store loaded plugins
-            str, BasePlugin
-        ] = {}
+        self.master = master
+        self.plugin_instances: dict[str, BasePlugin] = {}
 
-        # Set up the core commands and plugin commands
-        self._core_commands: set[str] = {  # Set of core commands
+        # Collect core commands and set up tracking structures for plugin commands
+        self._core_commands: set[str] = {
             method_name
             for method_name in dir(master)
             if method_name.startswith("cmd_")
             and callable(getattr(master, method_name, None))
         }
-        self._plugin_commands: dict[  # Dictionary to store plugin commands
-            str, set[str]
-        ] = {}
-        self._command_owners: dict[  # Dictionary to store the owner of each command
-            str, str
-        ] = {}
+        self._plugin_commands: dict[str, set[str]] = {}
+        self._command_owners: dict[str, str] = {}
 
-        # Initialize the plugin directory
-        self.plugin_dir = PROJECT_ROOT / plugin_dir  # Path to the plugin directory
-        self.plugin_dir.mkdir(  # Check if the plugin directory exists
-            parents=True, exist_ok=True
-        )
+        self.plugin_dir = PROJECT_ROOT / plugin_dir
+        self.plugin_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize the set of disabled plugins using a SetConfig instance
-        self.disabled_plugins = SetConfig(  # Set of disabled plugins
-            Path("CLI-Toolkit/disabled_plugins.json")
-        )
-        # Remove plugins from the disabled list if their file no longer exists
-        # Create a temporary set to avoid modifying the original during iteration
+        # Initialize the set of disabled plugins
+        self.disabled_plugins = SetConfig(Path("CLI-Toolkit/disabled_plugins.json"))
+
+        # Remove plugins from the disabled list if their file no longer exists.
+        # Iterate on a copy to avoid modifying the set during iteration.
         temp_disabled_plugins = self.disabled_plugins.copy()
         temp_plugin_dir_iter = self.plugin_dir.iterdir()
         for plugin_name in temp_disabled_plugins:
@@ -76,7 +63,7 @@ class PluginManager:
                 if self.plugin_dir / f"{plugin_name}.py" not in temp_plugin_dir_iter
                 else None
             )
-        (  # Save the updated set of disabled plugins
+        (
             self.disabled_plugins.save()
             if temp_disabled_plugins != self.disabled_plugins
             else None
@@ -93,58 +80,45 @@ class PluginManager:
                 to already be loaded. Defaults to False.
 
         """
-        self.logger.info("Loading plugin '%s'.", plugin_name)
+        logger.info("Loading plugin '%s'.", plugin_name)
 
-        # Check before loading
-        if plugin_name in self.disabled_plugins:  # Check if the plugin is disabled
+        # Pre-load validation checks
+        if plugin_name in self.disabled_plugins:
             raise PluginDisabledError(f"Plugin '{plugin_name}' is disabled.")
-        if (  # Check if the plugin is already loaded
-            plugin_name in self.plugin_instances
-        ):
-            self.logger.warning("Plugin '%s' is already loaded.", plugin_name)
+        if plugin_name in self.plugin_instances:
+            logger.warning("Plugin '%s' is already loaded.", plugin_name)
             if not loaded_ok:
                 raise PluginLoadedError(f"Plugin '{plugin_name}' is already loaded.")
-        if (  # Check if the plugin name is valid
-            ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name
-        ):
+        if ".." in plugin_name or "/" in plugin_name or "\\" in plugin_name:
             raise ValueError(f"Invalid plugin name: {plugin_name}")
-        self.plugin_dir.mkdir(  # Check if the plugin directory exists
-            parents=True, exist_ok=True
-        )
+        self.plugin_dir.mkdir(parents=True, exist_ok=True)
 
-        # Get the path to the plugin file
         plugin_path = self.plugin_dir / f"{plugin_name}.py"
 
-        # Load the plugin
-        if plugin_path.exists():  # Check if the plugin file exists
-            # Create a module spec
+        if plugin_path.exists():
             spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
-            if not (spec and spec.loader):  # Check if the module spec is invalid
+            if not (spec and spec.loader):
                 raise ValueError(
                     f"Plugin '{plugin_name}' has an invalid module specification. "
                     "This may indicate a corrupted or malformed plugin file."
                 )
 
-            # Load the module
-            module = importlib.util.module_from_spec(spec)  # Load the module
-            spec.loader.exec_module(module)  # Execute the module to import the plugin
-            if not hasattr(module, "Plugin"):  # Check if the plugin class exists
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if not hasattr(module, "Plugin"):
                 raise AttributeError(
                     f"Plugin '{plugin_name}' does not define a 'Plugin' class. "
                     "Each plugin must export a class named 'Plugin' "
                     "that inherits from BasePlugin."
                 )
-            if not issubclass(  # Check if the plugin class is a subclass of BasePlugin
-                module.Plugin, BasePlugin
-            ):
+            if not issubclass(module.Plugin, BasePlugin):
                 raise TypeError(
                     f"Plugin '{plugin_name}' does not inherit from BasePlugin. "
                     "The 'Plugin' class must be a subclass of api.BasePlugin."
                 )
 
-            # Create an instance of the plugin class
             plugin_instance: BasePlugin = module.Plugin(self.master)
-            self.logger.debug("Plugin instance: %s", plugin_instance)
+            logger.debug("Plugin instance: %s", plugin_instance)
 
             # Collect all command methods exported by the plugin
             plugin_methods: dict[str, object] = {}
@@ -168,20 +142,19 @@ class PluginManager:
                         f"'{self._command_owners[method_name]}'."
                     )
 
-            # Add validated plugin commands into the main application
+            # Inject validated plugin commands into the main application
             registered_commands: set[str] = set()
             for method_name, method_attr in plugin_methods.items():
                 setattr(self.master, method_name, method_attr)
                 self._command_owners[method_name] = plugin_name
                 registered_commands.add(method_name)
-                self.logger.debug("Added command '%s' to CLI.", method_name[4:])
+                logger.debug("Added command '%s' to CLI.", method_name[4:])
             self.plugin_instances[plugin_name] = plugin_instance
             self._plugin_commands[plugin_name] = registered_commands
 
-            # Log a message and return True
-            self.logger.info("Loaded plugin '%s'.", plugin_name)
+            logger.info("Loaded plugin '%s'.", plugin_name)
 
-        else:  # If the plugin file does not exist, raise an error
+        else:
             raise PluginNotFoundError(f"Plugin '{plugin_name}' not found.")
 
     def unload_plugin(self, plugin_name: str) -> None:
@@ -191,13 +164,11 @@ class PluginManager:
             plugin_name (str): The name of the plugin to be unloaded.
 
         """
-        self.logger.info("Unloading plugin '%s'.", plugin_name)
+        logger.info("Unloading plugin '%s'.", plugin_name)
 
-        # Check if the plugin is loaded
         if plugin_name in self.plugin_instances:
-            # Get the plugin instance
             plugin_instance = self.plugin_instances[plugin_name]
-            self.logger.debug("Plugin instance: %s", plugin_instance)
+            logger.debug("Plugin instance: %s", plugin_instance)
 
             # Remove only commands previously registered by this plugin
             for method_name in self._plugin_commands.get(plugin_name, set()):
@@ -205,17 +176,14 @@ class PluginManager:
                     continue
                 if hasattr(self.master, method_name):
                     delattr(self.master, method_name)
-                    self.logger.debug("Removed command '%s' from CLI.", method_name[4:])
+                    logger.debug("Removed command '%s' from CLI.", method_name[4:])
                 del self._command_owners[method_name]
             self._plugin_commands.pop(plugin_name, None)
 
-            # Remove the plugin from the dictionary of loaded plugins
             del self.plugin_instances[plugin_name]
+            logger.info("Unloaded plugin '%s'.", plugin_name)
 
-            # Log a message
-            self.logger.info("Unloaded plugin '%s'.", plugin_name)
-
-        else:  # If the plugin was not found, raise an error
+        else:
             raise PluginNotFoundError(f"Plugin '{plugin_name}' not found.")
 
     def reload_plugin(self, plugin_name: str) -> None:
@@ -225,10 +193,10 @@ class PluginManager:
             plugin_name (str): The name of the plugin to be reloaded.
 
         """
-        self.logger.info("Reloading plugin '%s'.", plugin_name)
-        self.unload_plugin(plugin_name)  # Unload the plugin
-        self.load_plugin(plugin_name)  # Load the plugin again
-        self.logger.info("Reloaded plugin '%s'.", plugin_name)
+        logger.info("Reloading plugin '%s'.", plugin_name)
+        self.unload_plugin(plugin_name)
+        self.load_plugin(plugin_name)
+        logger.info("Reloaded plugin '%s'.", plugin_name)
 
     def disable_plugin(self, plugin_name: str) -> None:
         """Disable a plugin by its name.
@@ -237,23 +205,19 @@ class PluginManager:
             plugin_name (str): The name of the plugin to be disabled.
 
         """
-        self.logger.info("Disabling plugin '%s'.", plugin_name)
+        logger.info("Disabling plugin '%s'.", plugin_name)
 
-        # Check if the plugin is already disabled
         if plugin_name in self.disabled_plugins:
             raise PluginDisabledError(f"Plugin '{plugin_name}' is already disabled.")
 
         if self.plugin_dir / f"{plugin_name}.py" not in self.plugin_dir.iterdir():
             raise PluginNotFoundError(f"Plugin '{plugin_name}' not found.")
 
-        # Add the plugin to the set of disabled plugins to disable it
         self.disabled_plugins.add(plugin_name)
         self.disabled_plugins.save()
-        if (  # If the plugin is currently loaded, unload it
-            plugin_name in self.plugin_instances
-        ):
+        if plugin_name in self.plugin_instances:
             self.unload_plugin(plugin_name)
-        self.logger.info("Disabled plugin '%s'.", plugin_name)
+        logger.info("Disabled plugin '%s'.", plugin_name)
 
     def enable_plugin(self, plugin_name: str) -> None:
         """Enable a plugin by its name.
@@ -262,20 +226,17 @@ class PluginManager:
             plugin_name (str): The name of the plugin to be enabled.
 
         """
-        self.logger.info("Enabling plugin '%s'.", plugin_name)
+        logger.info("Enabling plugin '%s'.", plugin_name)
 
-        # Check if the plugin is not disabled
         if plugin_name not in self.disabled_plugins:
             raise PluginNotDisabledError(
                 f"Plugin '{plugin_name}' is not disabled; enable only applies "
                 "to plugins in the disabled list."
             )
 
-        # Remove the plugin from the set of disabled plugins to enable it
         self.disabled_plugins.remove(plugin_name)
-        self.disabled_plugins.save()  # Save the updated set of disabled plugins
+        self.disabled_plugins.save()
 
-        # Check if the plugin file exists before loading
         if self.plugin_dir / f"{plugin_name}.py" not in self.plugin_dir.iterdir():
             raise PluginNotFoundError(
                 f"Plugin '{plugin_name}' not found while loading. "
@@ -283,11 +244,10 @@ class PluginManager:
                 "So it may have been deleted since the last time plugins were loaded."
             )
 
-        # Load the plugin if the configuration specifies to load on enable
         if self.master.config["plugin"]["load_on_enable"]:
             self.load_plugin(plugin_name)
 
-        self.logger.info("Enabled plugin '%s'.", plugin_name)
+        logger.info("Enabled plugin '%s'.", plugin_name)
 
     def load_all_plugins(self, console: Console | None = None) -> int:
         """Load all plugins in the plugin directory.
@@ -301,40 +261,36 @@ class PluginManager:
             int: The number of plugins loaded.
 
         """
-        self.logger.info("Loading all plugins.")
+        logger.info("Loading all plugins.")
 
-        loaded_count = 0  # Count the number of loaded plugins
+        loaded_count = 0
 
-        # Iterate over all files in the plugin directory
         for file in self.plugin_dir.iterdir():
-            if file.is_file() and file.suffix == ".py":  # Skip non-Python files
-                # Get the plugin name from the file name
+            if file.is_file() and file.suffix == ".py":
                 plugin_name = file.stem
 
-                # Skip disabled plugins and already loaded plugins
-                if plugin_name in self.disabled_plugins:  # Skip disabled plugins
-                    self.logger.info(
-                        "Plugin '%s' is disabled. Skipping...", plugin_name
-                    )
+                # Skip disabled or already loaded plugins
+                if plugin_name in self.disabled_plugins:
+                    logger.info("Plugin '%s' is disabled. Skipping...", plugin_name)
                     continue
-                if plugin_name in self.plugin_instances:  # Skip already loaded plugins
-                    self.logger.info(
+                if plugin_name in self.plugin_instances:
+                    logger.info(
                         "Plugin '%s' is already loaded. Skipping...", plugin_name
                     )
                     continue
 
-                # Load the plugin
-                try:  # Try to load the plugin
+                try:
                     self.load_plugin(plugin_name)
-                except Exception as e:  # If any other exception occurs, log an error
-                    self.logger.error("Failed to load plugin '%s': %s", plugin_name, e)
+                except Exception as e:
+                    logger.error("Failed to load plugin '%s': %s", plugin_name, e)
                     console.print(
-                        f"[red]Failed to load plugin '{plugin_name}': {e}[/red]"
+                        "[bold red]Failed to load plugin "
+                        f"'{plugin_name}': {e}[/bold red]"
                     ) if console else None
-                else:  # If the plugin was loaded successfully, log an info
+                else:
                     loaded_count += 1
 
-        self.logger.info("Loaded %d plugins.", loaded_count)
+        logger.info("Loaded %d plugins.", loaded_count)
         return loaded_count
 
     def unload_all_plugins(self) -> int:
@@ -344,16 +300,15 @@ class PluginManager:
             int: The number of plugins unloaded.
 
         """
-        self.logger.info("Unloading all plugins.")
+        logger.info("Unloading all plugins.")
 
-        unloaded_count = 0  # Count the number of unloaded plugins
+        unloaded_count = 0
 
-        # Iterate over all loaded plugins
         for plugin_name in list(self.plugin_instances.keys()):
-            self.unload_plugin(plugin_name)  # Unload the plugin
+            self.unload_plugin(plugin_name)
             unloaded_count += 1
 
-        self.logger.info("Unloaded %d plugins.", unloaded_count)
+        logger.info("Unloaded %d plugins.", unloaded_count)
         return unloaded_count
 
     def reload_all_plugins(self) -> int:
@@ -363,14 +318,13 @@ class PluginManager:
             int: The number of plugins reloaded.
 
         """
-        self.logger.info("Reloading all plugins.")
+        logger.info("Reloading all plugins.")
 
-        reloaded_count = 0  # Count the number of reloaded plugins
+        reloaded_count = 0
 
-        # Iterate over all loaded plugins
         for plugin_name in list(self.plugin_instances.keys()):
-            self.reload_plugin(plugin_name)  # Reload the plugin
+            self.reload_plugin(plugin_name)
             reloaded_count += 1
 
-        self.logger.info("Reloaded %d plugins.", reloaded_count)
+        logger.info("Reloaded %d plugins.", reloaded_count)
         return reloaded_count
