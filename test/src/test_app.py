@@ -142,7 +142,7 @@ class TestCLIToolkitApp:
         app = CLIToolkitApp()
         printed: list[str] = []
 
-        def capture_print(*args, **_kwagrs):
+        def capture_print(*args, **_kwargs):
             printed.append(str(args[0]) if args else "")
 
         app.console.print = capture_print
@@ -299,7 +299,7 @@ class TestCLIToolkitApp:
         app = CLIToolkitApp()
         printed: list[str] = []
 
-        def capture_print(*args, **_kwagrs):
+        def capture_print(*args, **_kwargs):
             printed.append(str(args[0]) if args else "")
 
         app.console.print = capture_print
@@ -407,7 +407,7 @@ class Plugin(BasePlugin):
         app = CLIToolkitApp()
         printed: list[str] = []
 
-        def capture_print(*args, **_kwagrs):
+        def capture_print(*args, **_kwargs):
             printed.append(" ".join(str(arg) for arg in args))
 
         app.console.print = capture_print
